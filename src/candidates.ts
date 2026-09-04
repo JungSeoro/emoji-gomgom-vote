@@ -24,9 +24,16 @@ import frame431 from '../asset/optimized/frame-431.webp'
 import frame432 from '../asset/optimized/frame-432.webp'
 import frame433 from '../asset/optimized/frame-433.webp'
 import frame434 from '../asset/optimized/frame-434.webp'
-import frame435 from '../asset/optimized/frame-435.webp'
 import frame436 from '../asset/optimized/frame-436.webp'
 import frame437 from '../asset/optimized/frame-437.webp'
+import frame438 from '../asset/optimized/frame-438.webp'
+import chatgpt3 from '../asset/optimized/chatgpt-3.webp'
+import chatgpt9 from '../asset/optimized/chatgpt-9.webp'
+import chatgpt11 from '../asset/optimized/chatgpt-11.webp'
+import chatgpt13 from '../asset/optimized/chatgpt-13.webp'
+import chatgpt14 from '../asset/optimized/chatgpt-14.webp'
+import image153 from '../asset/optimized/image-153.webp'
+import image154 from '../asset/optimized/image-154.webp'
 
 export type Candidate = {
   id: string
@@ -213,14 +220,14 @@ export const candidateGroups: CandidateGroup[] = [
   },
   {
     id: 'tea-a',
-    title: '한잔해 A',
+    title: '한잔해',
     isSet: false,
     candidates: [
       {
         id: 'c70a766c-fd89-484d-8615-f3300a870411',
         code: '14',
-        name: '한잔 해~ A',
-        description: '정장을 입고 찻잔을 건네는 곰곰 첫 번째 후보',
+        name: '한잔 해~',
+        description: '정장을 입고 찻잔을 건네는 곰곰',
         image: frame12,
         setId: null,
       },
@@ -364,28 +371,13 @@ export const candidateGroups: CandidateGroup[] = [
     ],
   },
   {
-    id: 'tea-b',
-    title: '한잔해 B',
-    isSet: false,
-    candidates: [
-      {
-        id: '7a7a3091-46d2-4fbf-a682-f927ae463ba4',
-        code: '26',
-        name: '한잔 해~ B',
-        description: '정장을 입고 찻잔을 건네는 곰곰 두 번째 후보',
-        image: frame435,
-        setId: null,
-      },
-    ],
-  },
-  {
     id: 'shock',
     title: '분노 폭발',
     isSet: false,
     candidates: [
       {
         id: 'd1f1c353-3881-5dfd-b139-be08aa713f04',
-        code: '27',
+        code: '26',
         name: '분노 폭발',
         description: '초록 연기 속에서 화가 폭발한 곰곰',
         image: frame436,
@@ -400,7 +392,7 @@ export const candidateGroups: CandidateGroup[] = [
     candidates: [
       {
         id: '0b1138ee-3494-5b92-acbd-332b3456eb1b',
-        code: '28',
+        code: '27',
         name: '가슴이 차가워',
         description: '가슴의 푸른빛을 붙잡고 힘들어하는 곰곰',
         image: frame11,
@@ -408,11 +400,131 @@ export const candidateGroups: CandidateGroup[] = [
       },
       {
         id: '9ce58f8d-b36b-58a6-aac1-f7fc6eb10c90',
-        code: '29',
+        code: '28',
         name: '가슴이 뜨거워',
         description: '가슴의 붉은빛을 붙잡고 힘들어하는 곰곰',
         image: frame437,
         setId: 'chest',
+      },
+    ],
+  },
+  {
+    id: 'look-around',
+    title: '살펴보는 중',
+    isSet: false,
+    candidates: [
+      {
+        id: '92576c1a-8088-46df-a89a-c0f1c9effe09',
+        code: '29',
+        name: '살펴보는 중',
+        description: '쌍안경을 들고 꼼꼼히 살펴보는 곰곰',
+        image: frame438,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'late-work',
+    title: '야근...',
+    isSet: false,
+    candidates: [
+      {
+        id: 'c7e4fe93-e907-4894-afff-9b3a1a8edc3a',
+        code: '30',
+        name: '야근...',
+        description: '커피와 당근을 들고 야근을 버티는 곰곰',
+        image: chatgpt3,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'is-this-life',
+    title: '이게 사는 건가?',
+    isSet: false,
+    candidates: [
+      {
+        id: '77bbe9fd-62b7-4c87-a051-ddf065a179dd',
+        code: '31',
+        name: '이게 사는 건가?',
+        description: '바닥에 누워 삶을 되돌아보는 곰곰',
+        image: chatgpt9,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'hospital',
+    title: '병원 다녀오겠습니다',
+    isSet: false,
+    candidates: [
+      {
+        id: 'e4f08866-3b6f-422f-acc8-f087fc9434da',
+        code: '32',
+        name: '병원 다녀오겠습니다',
+        description: '붕대를 감고 체온계를 문 채 병원에 가는 곰곰',
+        image: chatgpt11,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'go-to-work',
+    title: '출근...',
+    isSet: false,
+    candidates: [
+      {
+        id: 'd7c898e2-e2c3-4a7c-9cad-04a4c5b02173',
+        code: '33',
+        name: '출근...',
+        description: '지친 몸을 이끌고 출근하는 곰곰',
+        image: chatgpt13,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'review-request',
+    title: '리뷰 부탁드립니다',
+    isSet: false,
+    candidates: [
+      {
+        id: '1e955ae0-70fa-41d3-b578-71cba2fa881c',
+        code: '34',
+        name: '리뷰 부탁드립니다',
+        description: '돋보기로 문서를 꼼꼼히 검토하는 곰곰',
+        image: chatgpt14,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'another-team-dinner',
+    title: '또 회식?',
+    isSet: false,
+    candidates: [
+      {
+        id: '1d34a28c-92f1-44bf-a82e-4e1b3e99512c',
+        code: '35',
+        name: '또 회식?',
+        description: '갑작스러운 회식 소식에 당황한 곰곰',
+        image: image153,
+        setId: null,
+      },
+    ],
+  },
+  {
+    id: 'want-to-go-home',
+    title: '집 가고 싶다',
+    isSet: false,
+    candidates: [
+      {
+        id: '57bdf22f-e9fa-4477-88cb-3422288460c0',
+        code: '36',
+        name: '집 가고 싶다',
+        description: '책상에 엎드려 퇴근만 기다리는 곰곰',
+        image: image154,
+        setId: null,
       },
     ],
   },

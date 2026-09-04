@@ -161,6 +161,12 @@ function App() {
     setNicknameError('')
   }
 
+  const clearSelections = () => {
+    if (selectedIds.size === 0) return
+    setSelectedIds(new Set())
+    setNotice('선택한 후보를 모두 비웠어요.')
+  }
+
   if (voteResult) {
     return (
       <div className="site-shell success-shell">
@@ -307,6 +313,15 @@ function App() {
           <button type="button" className="mobile-preview-trigger" onClick={() => setPreviewOpen(true)} disabled={!previewCandidate}>
             <Eye size={19} strokeWidth={2.8} />
             미리보기
+          </button>
+          <button
+            type="button"
+            className="clear-trigger"
+            onClick={clearSelections}
+            disabled={selectedIds.size === 0}
+            aria-label="선택한 후보 모두 지우기"
+          >
+            CLEAR
           </button>
           <button type="button" className="review-trigger" onClick={openReview}>
             투표 검토

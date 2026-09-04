@@ -568,8 +568,7 @@ textarea:focus-visible {
   border-radius: 14px;
   background: var(--white);
   box-shadow: 5px 6px 0 var(--blue-soft);
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-  transform: none;
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
 .candidate-card::after {
@@ -582,38 +581,21 @@ textarea:focus-visible {
 }
 
 .candidate-card:hover {
-  transform: translate(-2px, -3px);
-  box-shadow: 8px 9px 0 var(--blue-soft);
-  border-color: var(--ink);
+  border-color: var(--blue);
 }
 
 .candidate-card.is-selected {
   background: var(--blue);
-  box-shadow: 7px 8px 0 var(--ink);
-  transform: rotate(-0.45deg) translateY(-2px);
+  box-shadow: 5px 6px 0 var(--ink);
   border-color: var(--ink);
   color: var(--white);
 }
 
-.candidate-card:nth-child(even).is-selected {
-  transform: rotate(0.45deg) translateY(-2px);
-}
-
-.candidate-select {
+.candidate-content {
   display: block;
   width: 100%;
   padding: 56px 13px 13px;
-  border: 0;
-  background: transparent;
   text-align: left;
-  cursor: pointer;
-}
-
-.candidate-select:focus-visible {
-  outline: 2px solid transparent;
-  outline-offset: -4px;
-  box-shadow: inset 0 0 0 2px var(--white), inset 0 0 0 5px var(--blue);
-  border-radius: 14px;
 }
 
 .candidate-code {
@@ -633,38 +615,6 @@ textarea:focus-visible {
   transform: rotate(-2deg);
 }
 
-.candidate-check {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  z-index: 2;
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 2px solid var(--ink);
-  border-radius: 50%;
-  background: var(--white);
-  color: var(--white);
-}
-
-.candidate-check > span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--line);
-}
-
-.candidate-card.is-selected .candidate-check {
-  background: var(--yellow);
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.candidate-card.is-selected .candidate-select:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--white), inset 0 0 0 5px var(--yellow);
-}
-
 .candidate-image-wrap {
   position: relative;
   display: grid;
@@ -675,11 +625,6 @@ textarea:focus-visible {
   padding: 22px 22px 28px;
   overflow: hidden;
   place-items: center;
-  border: 1px solid #7f9ed5;
-  border-radius: 9px;
-  background:
-    linear-gradient(135deg, transparent 0 84%, rgba(34, 86, 214, 0.12) 84% 89%, transparent 89% 93%, rgba(34, 86, 214, 0.08) 93%),
-    var(--blue-pale);
 }
 
 .candidate-image-wrap img {
@@ -726,40 +671,63 @@ textarea:focus-visible {
   color: var(--yellow);
 }
 
-.preview-button {
+.candidate-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 16px 16px;
+}
+
+.preview-button,
+.vote-button {
   display: flex;
-  width: calc(100% - 32px);
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  margin: 0 16px 16px;
   padding: 8px 10px;
   border: 2px solid var(--ink);
   border-radius: 7px;
-  background: var(--blue-deep);
   box-shadow: none;
-  color: var(--white);
   font-size: 12px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.preview-button {
+  background: var(--white);
+  color: var(--blue-deep);
 }
 
 .preview-button:hover {
+  background: var(--blue-pale);
+  border-color: var(--blue);
+  color: var(--blue-deep);
+}
+
+.vote-button {
+  background: var(--blue-deep);
+  color: var(--white);
+}
+
+.vote-button:hover {
+  background: var(--blue);
+  border-color: var(--blue-deep);
+}
+
+.vote-button.is-selected {
   background: var(--yellow);
   border-color: var(--ink);
   color: var(--ink);
 }
 
-.candidate-card.is-selected .preview-button {
-  background: var(--yellow);
-  box-shadow: none;
-  color: var(--ink);
-}
-
-.preview-button:active {
-  transform: scale(0.97);
+.vote-button:disabled {
+  cursor: not-allowed;
 }
 
 .desktop-preview {
@@ -1011,15 +979,16 @@ textarea:focus-visible {
 
 .emoji-message {
   display: grid;
-  width: 165px;
-  height: 165px;
+  width: 205px;
+  height: 145px;
   place-items: center;
 }
 
 .emoji-message img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: 145px;
+  max-width: 205px;
   object-fit: contain;
   filter: drop-shadow(2px 3px 2px rgba(20, 23, 28, 0.12));
 }
@@ -1227,6 +1196,7 @@ textarea:focus-visible {
 }
 
 .review-trigger,
+.clear-trigger,
 .mobile-preview-trigger {
   display: inline-flex;
   min-height: 54px;
@@ -1242,20 +1212,26 @@ textarea:focus-visible {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .review-trigger:hover {
   background: var(--coral);
 }
 
-.review-trigger:active,
-.mobile-preview-trigger:active,
-.dialog-vote-button:active,
-.back-button:active,
-.submit-button:active,
-.success-card > button:active {
-  transform: translate(2px, 2px);
+.clear-trigger {
+  padding-inline: 16px;
+  border-color: var(--blue-soft);
+  background: transparent;
+  box-shadow: none;
+  color: var(--white);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.clear-trigger:hover:not(:disabled) {
+  border-color: var(--white);
+  background: var(--blue);
 }
 
 .mobile-preview-trigger {
@@ -1279,14 +1255,13 @@ textarea:focus-visible {
   font-weight: 600;
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -18px);
-  transition: opacity 150ms ease, transform 150ms ease;
+  transform: translateX(-50%);
+  transition: opacity 150ms ease;
   color: var(--blue-deep);
 }
 
 .toast.is-visible {
   opacity: 1;
-  transform: translate(-50%, 0);
 }
 
 dialog {
@@ -1313,12 +1288,12 @@ dialog::backdrop {
 
 .preview-dialog[open],
 .review-dialog[open] {
-  animation: dialog-pop 180ms ease-out;
+  animation: dialog-fade 160ms ease-out;
 }
 
-@keyframes dialog-pop {
-  from { opacity: 0; transform: translateY(18px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes dialog-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .dialog-topline {
@@ -1374,6 +1349,16 @@ dialog::backdrop {
   aspect-ratio: 340 / 690;
 }
 
+.galaxy-preview.is-compact .emoji-message {
+  width: 185px;
+  height: 130px;
+}
+
+.galaxy-preview.is-compact .emoji-message img {
+  height: 130px;
+  max-width: 185px;
+}
+
 .preview-limit-note {
   margin: 8px 18px 0;
   padding: 10px 12px;
@@ -1401,7 +1386,7 @@ dialog::backdrop {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease;
 }
 
 .dialog-vote-button.is-selected {
@@ -1621,7 +1606,7 @@ dialog::backdrop {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .back-button {
@@ -1771,7 +1756,7 @@ dialog::backdrop {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease;
 }
 
 .success-burst {
@@ -1811,19 +1796,6 @@ dialog::backdrop {
 }
 
 @media (max-width: 1100px) {
-  .sticker-star {
-    display: none;
-  }
-
-  .sticker-pick {
-    top: 88px;
-    right: 32px;
-    bottom: auto;
-    padding: 10px 13px 7px;
-    box-shadow: 3px 4px 0 var(--ink);
-    font-size: 19px;
-  }
-
   .hero-inner {
     grid-template-columns: minmax(0, 1fr) 280px;
     column-gap: 40px;
@@ -1831,7 +1803,6 @@ dialog::backdrop {
 
   .hero-mascot {
     width: 280px;
-    box-shadow: 9px 10px 0 var(--ink);
   }
 
   .nickname-section {
@@ -1861,12 +1832,7 @@ dialog::backdrop {
 
 @media (max-width: 960px) {
   .hero {
-    min-height: 680px;
-  }
-
-  .hero::after {
-    right: -180px;
-    opacity: 0;
+    min-height: 570px;
   }
 
   .hero-inner {
@@ -1877,16 +1843,12 @@ dialog::backdrop {
       'rules';
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    padding: 62px 0 132px;
+    padding: 58px 0 76px;
     text-align: center;
   }
 
   .hero-mascot {
     display: none;
-  }
-
-  .hero h1 span {
-    transform: none;
   }
 
   .hero-rules {
@@ -1900,21 +1862,7 @@ dialog::backdrop {
   }
 
   .hero {
-    min-height: 640px;
-  }
-
-  .hero::before {
-    inset: 0;
-  }
-
-  .hero::after {
-    top: 130px;
-    right: -280px;
-    bottom: auto;
-    left: auto;
-    width: 500px;
-    height: 500px;
-    opacity: 0;
+    min-height: 540px;
   }
 
   .hero-nav {
@@ -1925,15 +1873,6 @@ dialog::backdrop {
   .hero-wordmark,
   .hero-candidate-count {
     font-size: 9px;
-  }
-
-  .sticker-pick {
-    top: 76px;
-    right: 18px;
-    padding: 8px 10px 6px;
-    border-width: 2px;
-    box-shadow: 3px 3px 0 var(--ink);
-    font-size: 16px;
   }
 
   .hero-inner,
@@ -1949,7 +1888,7 @@ dialog::backdrop {
       'rules';
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    padding: 58px 0 128px;
+    padding: 48px 0 72px;
     text-align: center;
   }
 
@@ -1968,10 +1907,6 @@ dialog::backdrop {
     line-height: 0.86;
   }
 
-  .hero h1 span {
-    transform: none;
-  }
-
   .hero-inner > p {
     margin: 23px 0 28px;
     font-size: 16px;
@@ -1985,17 +1920,6 @@ dialog::backdrop {
 
   .hero-rules {
     justify-content: center;
-  }
-
-  .hero-marquee {
-    height: 48px;
-    gap: 20px;
-    padding: 0 16px;
-    font-size: 14px;
-  }
-
-  .hero-marquee span::before {
-    margin-right: 20px;
   }
 
   .main-content {
@@ -2131,7 +2055,7 @@ dialog::backdrop {
     box-shadow: 4px 5px 0 var(--blue-soft);
   }
 
-  .candidate-select {
+  .candidate-content {
     padding: 46px 10px 10px;
   }
 
@@ -2142,19 +2066,10 @@ dialog::backdrop {
     font-size: 10px;
   }
 
-  .candidate-check {
-    top: 10px;
-    right: 10px;
-    width: 29px;
-    height: 29px;
-    border-width: 2px;
-  }
-
   .candidate-image-wrap {
     width: min(100%, 220px);
     height: auto;
     padding: 18px 18px 24px;
-    border-radius: 9px;
   }
 
   .candidate-copy {
@@ -2170,12 +2085,22 @@ dialog::backdrop {
     margin-top: 4px;
   }
 
-  .preview-button {
-    width: calc(100% - 20px);
-    min-height: 44px;
+  .candidate-actions {
+    gap: 6px;
     margin: 0 10px 10px;
-    padding: 7px 5px;
-    font-size: 12px;
+  }
+
+  .preview-button,
+  .vote-button {
+    min-height: 44px;
+    padding: 7px 4px;
+    font-size: 11px;
+  }
+
+  .preview-button svg,
+  .vote-button svg {
+    width: 15px;
+    height: 15px;
   }
 
   .selection-dock-inner {
@@ -2228,6 +2153,7 @@ dialog::backdrop {
   }
 
   .review-trigger,
+  .clear-trigger,
   .mobile-preview-trigger {
     min-height: 46px;
     padding: 0 13px;
@@ -2237,6 +2163,11 @@ dialog::backdrop {
 
   .review-trigger {
     font-size: 12px;
+  }
+
+  .clear-trigger {
+    padding-inline: 10px;
+    font-size: 10px;
   }
 
   .review-trigger svg {
@@ -2389,6 +2320,7 @@ dialog::backdrop {
   }
 
   .review-trigger,
+  .clear-trigger,
   .mobile-preview-trigger {
     padding: 0 10px;
   }
