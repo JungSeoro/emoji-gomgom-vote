@@ -81,7 +81,7 @@ supabase functions deploy vote-results --no-verify-jwt
 
 관리자 화면에서는 닉네임 일부로 제출 내역을 필터링할 수 있으며, 후보별 득표 집계와 피드백 목록도 같은 필터를 따릅니다. 비밀번호 원문과 Service role key는 프런트 코드에 포함하지 않습니다. bcrypt 제한에 맞춰 비밀번호는 UTF-8 기준 72바이트 이하로 설정합니다. 로그인은 IP별 5회 실패 시 15분 동안 제한되며, 접근 세션은 최대 2시간·미사용 30분 후 만료됩니다. 세션 토큰은 현재 탭의 `sessionStorage`에만 저장됩니다.
 
-GitHub Pages 기본 주소 외의 도메인에서 관리자 화면을 사용할 때는 Edge Function secret `ADMIN_RESULTS_ALLOWED_ORIGINS`에 허용할 Origin을 쉼표로 구분해 등록합니다.
+Edge Function은 GitHub Pages 기본 주소와 `https://gomgom-vote.jungseoro.com`을 허용합니다. 다른 도메인에서 관리자 화면을 사용할 때는 Edge Function secret `ADMIN_RESULTS_ALLOWED_ORIGINS`에 허용할 Origin을 쉼표로 구분해 등록합니다.
 
 ## 후보와 세트 추가
 

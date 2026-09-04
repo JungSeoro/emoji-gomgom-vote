@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.115.0'
 
 const campaignId = 'd844f5be-88d4-4a98-95d4-cb6e569f68bf'
 const githubPagesOrigin = 'https://jungseoro.github.io'
+const productionOrigin = 'https://gomgom-vote.jungseoro.com'
 const sessionTokenPattern = /^[0-9a-f]{64}$/
 const requestBodyLimit = 4096
 
@@ -35,7 +36,7 @@ const configuredOrigins = (Deno.env.get('ADMIN_RESULTS_ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean)
-const allowedOrigins = new Set([githubPagesOrigin, ...configuredOrigins])
+const allowedOrigins = new Set([githubPagesOrigin, productionOrigin, ...configuredOrigins])
 
 const database = supabaseUrl && serviceKey
   ? createClient(supabaseUrl, serviceKey, {
