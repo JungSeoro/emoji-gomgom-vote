@@ -53,6 +53,36 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 
 결과 확인용 쿼리는 `supabase/results.sql`에 있습니다. 익명 사용자는 제출만 가능하며 투표 내역과 결과는 조회할 수 없습니다.
 
+## 관리자 결과 페이지
+
+관리자 화면은 기존 투표 화면에 링크가 없으며 `https://배포주소/#/results`로 직접 접속합니다. Supabase가 연결된 환경에서만 사용할 수 있습니다.
+
+1. 최신 `supabase/schema.sql`을 적용합니다.
+2. Supabase Edge Function `vote-results`를 JWT 검사 없이 배포합니다.
+3. 안전한 로컬 도구에서 PostgreSQL `pgcrypto`와 호환되는 `$2a$`, cost 12 이상의 bcrypt 해시를 만든 뒤 SQL Editor에는 해시만 등록합니다. 평문 비밀번호는 SQL Editor에 입력하지 않습니다.
+
+```sql
+insert into private.vote_result_access (singleton, password_hash, updated_at)
+values (
+  true,
+  '$2a$12$로컬에서_생성한_bcrypt_해시',
+  now()
+)
+on conflict (singleton) do update
+set password_hash = excluded.password_hash,
+    updated_at = excluded.updated_at;
+
+delete from private.vote_result_sessions;
+```
+
+```bash
+supabase functions deploy vote-results --no-verify-jwt
+```
+
+관리자 화면에서는 닉네임 일부로 제출 내역을 필터링할 수 있으며, 후보별 득표 집계와 피드백 목록도 같은 필터를 따릅니다. 비밀번호 원문과 Service role key는 프런트 코드에 포함하지 않습니다. bcrypt 제한에 맞춰 비밀번호는 UTF-8 기준 72바이트 이하로 설정합니다. 로그인은 IP별 5회 실패 시 15분 동안 제한되며, 접근 세션은 최대 2시간·미사용 30분 후 만료됩니다. 세션 토큰은 현재 탭의 `sessionStorage`에만 저장됩니다.
+
+GitHub Pages 기본 주소 외의 도메인에서 관리자 화면을 사용할 때는 Edge Function secret `ADMIN_RESULTS_ALLOWED_ORIGINS`에 허용할 Origin을 쉼표로 구분해 등록합니다.
+
 ## 후보와 세트 추가
 
 후보 정보는 `src/candidates.ts`에서 관리합니다. 같은 행에 속하는 후보들은 하나의 `CandidateGroup` 안에 넣고 `isSet: true`로 설정합니다. 각 후보의 `setId`에는 같은 세트 식별자를 넣습니다. 후보 ID와 캠페인의 최소·최대 선택 수는 `supabase/schema.sql`에도 동일하게 반영해야 합니다.

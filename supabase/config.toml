@@ -1,0 +1,2 @@
+[functions.vote-results]
+verify_jwt = false

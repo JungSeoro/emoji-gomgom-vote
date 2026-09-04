@@ -191,8 +191,8 @@ function App() {
     <div className="site-shell">
       <header className="hero">
         <div className="hero-nav">
-          <span className="hero-wordmark"><span aria-hidden="true">G</span> GOMGOM VOTE</span>
-          <span className="hero-candidate-count">{candidates.length} CANDIDATES</span>
+          <span className="hero-wordmark">AI Platform Team</span>
+          <span className="hero-candidate-count">GomGom Emoticon</span>
         </div>
         <div className="hero-inner">
           <div className="hero-badge"><Sparkles size={16} strokeWidth={3} /> GOMGOM CREW PICK</div>

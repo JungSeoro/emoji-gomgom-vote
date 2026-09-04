@@ -237,3 +237,462 @@ set code = excluded.code,
     set_key = excluded.set_key,
     display_order = excluded.display_order,
     is_active = true;
+
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+
+create schema if not exists private;
+
+drop policy if exists vote_campaigns_admin_select on public.vote_campaigns;
+drop policy if exists emoji_candidates_admin_select on public.emoji_candidates;
+drop policy if exists vote_submissions_admin_select on public.vote_submissions;
+drop policy if exists vote_choices_admin_select on public.vote_choices;
+
+revoke all on schema private from public, anon, authenticated;
+grant usage on schema private to service_role;
+
+create table if not exists private.vote_result_access (
+  singleton boolean primary key default true check (singleton),
+  password_hash text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table private.vote_result_access
+  drop constraint if exists vote_result_access_password_hash_check;
+
+alter table private.vote_result_access
+  add constraint vote_result_access_password_hash_check
+  check (password_hash ~ '^\$2a\$(1[2-9]|2[0-9]|3[01])\$[./A-Za-z0-9]{53}$');
+
+create table if not exists private.vote_result_sessions (
+  token_hash text primary key check (token_hash ~ '^[0-9a-f]{64}$'),
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  check (expires_at > created_at)
+);
+
+create table if not exists private.vote_result_login_attempts (
+  id bigint generated always as identity primary key,
+  request_key text not null check (request_key ~ '^[0-9a-f]{64}$'),
+  attempted_at timestamptz not null default now()
+);
+
+create index if not exists vote_result_sessions_expires_idx
+  on private.vote_result_sessions(expires_at);
+
+create index if not exists vote_result_login_attempts_request_idx
+  on private.vote_result_login_attempts(request_key, attempted_at desc);
+
+create index if not exists vote_result_login_attempts_time_idx
+  on private.vote_result_login_attempts(attempted_at);
+
+alter table private.vote_result_access enable row level security;
+alter table private.vote_result_sessions enable row level security;
+alter table private.vote_result_login_attempts enable row level security;
+
+revoke all privileges on table
+  private.vote_result_access,
+  private.vote_result_sessions,
+  private.vote_result_login_attempts
+from public, anon, authenticated, service_role;
+
+grant select on table private.vote_result_access to service_role;
+grant select, insert, update, delete on table private.vote_result_sessions to service_role;
+grant select, insert, delete on table private.vote_result_login_attempts to service_role;
+grant usage, select on sequence private.vote_result_login_attempts_id_seq to service_role;
+
+drop policy if exists vote_result_access_deny_all on private.vote_result_access;
+create policy vote_result_access_deny_all
+  on private.vote_result_access
+  for all
+  to public
+  using (false)
+  with check (false);
+
+drop policy if exists vote_result_sessions_deny_all on private.vote_result_sessions;
+create policy vote_result_sessions_deny_all
+  on private.vote_result_sessions
+  for all
+  to public
+  using (false)
+  with check (false);
+
+drop policy if exists vote_result_login_attempts_deny_all on private.vote_result_login_attempts;
+create policy vote_result_login_attempts_deny_all
+  on private.vote_result_login_attempts
+  for all
+  to public
+  using (false)
+  with check (false);
+
+revoke select on table
+  public.vote_campaigns,
+  public.emoji_candidates,
+  public.vote_submissions,
+  public.vote_choices
+from anon, authenticated;
+
+drop policy if exists vote_campaigns_deny_direct_access on public.vote_campaigns;
+create policy vote_campaigns_deny_direct_access
+  on public.vote_campaigns
+  for all
+  to public
+  using (false)
+  with check (false);
+
+drop policy if exists emoji_candidates_deny_direct_access on public.emoji_candidates;
+create policy emoji_candidates_deny_direct_access
+  on public.emoji_candidates
+  for all
+  to public
+  using (false)
+  with check (false);
+
+drop policy if exists vote_submissions_deny_direct_access on public.vote_submissions;
+create policy vote_submissions_deny_direct_access
+  on public.vote_submissions
+  for all
+  to public
+  using (false)
+  with check (false);
+
+drop policy if exists vote_choices_deny_direct_access on public.vote_choices;
+create policy vote_choices_deny_direct_access
+  on public.vote_choices
+  for all
+  to public
+  using (false)
+  with check (false);
+
+grant select on table
+  public.vote_campaigns,
+  public.emoji_candidates,
+  public.vote_submissions,
+  public.vote_choices
+to service_role;
+
+drop function if exists public.get_vote_results(uuid, text);
+drop function if exists public.get_vote_results(uuid, text, integer, integer);
+drop function if exists public.get_vote_results(text, uuid, text, integer, integer);
+drop function if exists public.unlock_vote_results(text, text);
+drop function if exists public.lock_vote_results(text);
+
+drop function if exists private.is_vote_admin();
+drop table if exists private.vote_admins;
+
+create function public.unlock_vote_results(
+  p_password text,
+  p_request_key text
+)
+returns jsonb
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  v_password_hash text;
+  v_request_attempt_count bigint;
+  v_global_attempt_count bigint;
+  v_access_token text;
+  v_token_hash text;
+  v_expires_at timestamptz;
+begin
+  if p_request_key is null or p_request_key !~ '^[0-9a-f]{64}$' then
+    raise exception '요청 정보가 올바르지 않습니다.' using errcode = '22023';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('vote-results-login-global', 0)
+  );
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_request_key, 0));
+
+  delete from private.vote_result_login_attempts as attempt
+  where attempt.attempted_at < statement_timestamp() - interval '1 day';
+
+  select count(*)
+  into v_request_attempt_count
+  from private.vote_result_login_attempts as attempt
+  where attempt.request_key = p_request_key
+    and attempt.attempted_at >= statement_timestamp() - interval '15 minutes';
+
+  select count(*)
+  into v_global_attempt_count
+  from private.vote_result_login_attempts as attempt
+  where attempt.attempted_at >= statement_timestamp() - interval '15 minutes';
+
+  if v_request_attempt_count >= 5 or v_global_attempt_count >= 100 then
+    return jsonb_build_object(
+      'status', 'rate_limited',
+      'retry_after_seconds', 900
+    );
+  end if;
+
+  select access.password_hash
+  into v_password_hash
+  from private.vote_result_access as access
+  where access.singleton;
+
+  if not found then
+    return jsonb_build_object('status', 'not_configured');
+  end if;
+
+  if p_password is null
+    or octet_length(p_password) not between 1 and 72
+    or extensions.crypt(p_password, v_password_hash) is distinct from v_password_hash then
+    insert into private.vote_result_login_attempts (request_key)
+    values (p_request_key);
+
+    return jsonb_build_object('status', 'invalid');
+  end if;
+
+  delete from private.vote_result_login_attempts as attempt
+  where attempt.request_key = p_request_key;
+
+  delete from private.vote_result_sessions as session
+  where session.expires_at <= statement_timestamp()
+     or session.last_seen_at <= statement_timestamp() - interval '30 minutes';
+
+  v_access_token := pg_catalog.encode(extensions.gen_random_bytes(32), 'hex');
+  v_token_hash := pg_catalog.encode(extensions.digest(v_access_token, 'sha256'), 'hex');
+  v_expires_at := statement_timestamp() + interval '2 hours';
+
+  insert into private.vote_result_sessions (token_hash, expires_at)
+  values (v_token_hash, v_expires_at);
+
+  return jsonb_build_object(
+    'status', 'ok',
+    'access_token', v_access_token,
+    'expires_at', v_expires_at
+  );
+end;
+$$;
+
+create function public.lock_vote_results(
+  p_session_hash text
+)
+returns void
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+begin
+  if p_session_hash is null or p_session_hash !~ '^[0-9a-f]{64}$' then
+    return;
+  end if;
+
+  delete from private.vote_result_sessions as session
+  where session.token_hash = p_session_hash;
+end;
+$$;
+
+create or replace function public.get_vote_results(
+  p_session_hash text,
+  p_campaign_id uuid,
+  p_nickname_filter text default null,
+  p_page integer default 1,
+  p_page_size integer default 50
+)
+returns jsonb
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  v_nickname_filter text;
+  v_result jsonb;
+  v_has_access boolean;
+begin
+  if p_session_hash is null or p_session_hash !~ '^[0-9a-f]{64}$' then
+    raise exception '투표 결과 접근 시간이 만료되었습니다.' using errcode = '42501';
+  end if;
+
+  update private.vote_result_sessions as session
+  set last_seen_at = statement_timestamp()
+  where session.token_hash = p_session_hash
+    and session.expires_at > statement_timestamp()
+    and session.last_seen_at > statement_timestamp() - interval '30 minutes'
+  returning true into v_has_access;
+
+  if not coalesce(v_has_access, false) then
+    raise exception '투표 결과 접근 시간이 만료되었습니다.' using errcode = '42501';
+  end if;
+
+  if p_page is null or p_page < 1 then
+    raise exception '페이지는 1 이상이어야 합니다.' using errcode = '22023';
+  end if;
+
+  if p_page_size is null or p_page_size < 1 or p_page_size > 100 then
+    raise exception '페이지 크기는 1 이상 100 이하여야 합니다.' using errcode = '22023';
+  end if;
+
+  if p_campaign_id is null
+    or not exists (
+      select 1
+      from public.vote_campaigns as campaign
+      where campaign.id = p_campaign_id
+    ) then
+    raise exception '투표 정보를 찾을 수 없습니다.' using errcode = '22023';
+  end if;
+
+  v_nickname_filter := nullif(btrim(coalesce(p_nickname_filter, '')), '');
+
+  with filtered_submissions as (
+    select
+      submission.id,
+      submission.campaign_id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at
+    from public.vote_submissions as submission
+    where submission.campaign_id = p_campaign_id
+      and (
+        v_nickname_filter is null
+        or strpos(lower(submission.nickname), lower(v_nickname_filter)) > 0
+      )
+  ),
+  filtered_counts as (
+    select
+      count(*) as submission_count,
+      count(*) filter (
+        where nullif(btrim(submission.feedback), '') is not null
+      ) as feedback_count
+    from filtered_submissions as submission
+  ),
+  paged_submissions as (
+    select
+      submission.id,
+      submission.campaign_id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at
+    from filtered_submissions as submission
+    order by submission.created_at desc, submission.id
+    limit p_page_size
+    offset (p_page::bigint - 1) * p_page_size::bigint
+  ),
+  candidate_vote_rows as (
+    select
+      candidate.id as candidate_id,
+      candidate.code,
+      candidate.name,
+      candidate.set_key,
+      candidate.display_order,
+      count(submission.id) as vote_count
+    from public.emoji_candidates as candidate
+    left join public.vote_choices as choice
+      on choice.campaign_id = candidate.campaign_id
+     and choice.candidate_id = candidate.id
+    left join filtered_submissions as submission
+      on submission.campaign_id = choice.campaign_id
+     and submission.id = choice.submission_id
+    where candidate.campaign_id = p_campaign_id
+    group by
+      candidate.id,
+      candidate.code,
+      candidate.name,
+      candidate.set_key,
+      candidate.display_order,
+      candidate.is_active
+    having candidate.is_active or count(submission.id) > 0
+  ),
+  submission_rows as (
+    select
+      submission.id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at,
+      coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'candidate_id', candidate.id,
+            'code', candidate.code,
+            'name', candidate.name,
+            'set_key', candidate.set_key,
+            'display_order', candidate.display_order
+          )
+          order by candidate.display_order
+        ) filter (where candidate.id is not null),
+        '[]'::jsonb
+      ) as selected_candidates
+    from paged_submissions as submission
+    left join public.vote_choices as choice
+      on choice.campaign_id = submission.campaign_id
+     and choice.submission_id = submission.id
+    left join public.emoji_candidates as candidate
+      on candidate.campaign_id = choice.campaign_id
+     and candidate.id = choice.candidate_id
+    group by submission.id, submission.nickname, submission.feedback, submission.created_at
+  )
+  select jsonb_build_object(
+    'campaign_id', p_campaign_id,
+    'nickname_filter', coalesce(v_nickname_filter, ''),
+    'page', p_page,
+    'page_size', p_page_size,
+    'has_previous_page', p_page > 1,
+    'has_next_page', (
+      select counts.submission_count > p_page::bigint * p_page_size::bigint
+      from filtered_counts as counts
+    ),
+    'total_submission_count', (
+      select count(*)
+      from public.vote_submissions as submission
+      where submission.campaign_id = p_campaign_id
+    ),
+    'filtered_submission_count', (
+      select counts.submission_count
+      from filtered_counts as counts
+    ),
+    'feedback_count', (
+      select counts.feedback_count
+      from filtered_counts as counts
+    ),
+    'candidate_votes', coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'candidate_id', candidate.candidate_id,
+            'code', candidate.code,
+            'name', candidate.name,
+            'set_key', candidate.set_key,
+            'display_order', candidate.display_order,
+            'vote_count', candidate.vote_count
+          )
+          order by candidate.vote_count desc, candidate.display_order
+        )
+        from candidate_vote_rows as candidate
+      ),
+      '[]'::jsonb
+    ),
+    'submissions', coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'id', submission.id,
+            'nickname', submission.nickname,
+            'feedback', submission.feedback,
+            'created_at', submission.created_at,
+            'selected_candidates', submission.selected_candidates
+          )
+          order by submission.created_at desc, submission.id
+        )
+        from submission_rows as submission
+      ),
+      '[]'::jsonb
+    )
+  ) into v_result;
+
+  return v_result;
+end;
+$$;
+
+revoke execute on function public.unlock_vote_results(text, text) from public, anon, authenticated, service_role;
+revoke execute on function public.lock_vote_results(text) from public, anon, authenticated, service_role;
+revoke execute on function public.get_vote_results(text, uuid, text, integer, integer) from public, anon, authenticated, service_role;
+
+grant execute on function public.unlock_vote_results(text, text) to service_role;
+grant execute on function public.lock_vote_results(text) to service_role;
+grant execute on function public.get_vote_results(text, uuid, text, integer, integer) to service_role;
