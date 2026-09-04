@@ -191,12 +191,12 @@ function App() {
           <div className="hero-badge"><Sparkles size={16} strokeWidth={3} /> GOMGOM CREW PICK</div>
           <h1>
             곰곰이 보고,<br />
-            <span>그냥 골라줘</span>
+            <span>곰곰히 골라줘</span>
           </h1>
-          <p>실제 갤럭시 메시지 화면에서 확인하고<br className="mobile-break" /> 서비스하고 싶은 이모티콘에 투표해 주세요.</p>
+          <p>모바일 메시지 화면에서 확인하고<br className="mobile-break" /> 실제로 사용을 하고 싶은 이모티콘에 투표해 주세요.</p>
           <div className="hero-rules">
             <span><MousePointerClick size={18} /> 최대 {pollConfig.maxSelections}개 PICK</span>
-            <span><MessageCircleMore size={18} /> 폰 화면 미리보기</span>
+            <span><MessageCircleMore size={18} /> 이모티콘을 클릭하여 임시 폰 화면에서 확인!</span>
           </div>
           <div className="hero-mascot" aria-hidden="true">
             {heroCandidate && <img src={heroCandidate.image} alt="" />}
