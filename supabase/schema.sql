@@ -139,6 +139,10 @@ begin
   v_choice_count := coalesce(cardinality(p_candidate_ids), 0);
 
   if v_choice_count < v_min_selections or v_choice_count > v_max_selections then
+    if v_min_selections = v_max_selections then
+      raise exception '이모티콘을 정확히 %개 선택해 주세요.', v_min_selections using errcode = '22023';
+    end if;
+
     raise exception '선택 가능한 이모티콘은 최소 %개, 최대 %개입니다.', v_min_selections, v_max_selections using errcode = '22023';
   end if;
 
