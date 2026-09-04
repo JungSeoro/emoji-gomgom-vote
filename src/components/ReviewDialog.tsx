@@ -8,6 +8,7 @@ type ReviewDialogProps = {
   selectedCandidates: Candidate[]
   feedback: string
   feedbackMaxLength: number
+  requiredSelections: number
   submitting: boolean
   submitError: string
   onFeedbackChange: (value: string) => void
@@ -22,6 +23,7 @@ export function ReviewDialog({
   selectedCandidates,
   feedback,
   feedbackMaxLength,
+  requiredSelections,
   submitting,
   submitError,
   onFeedbackChange,
@@ -30,6 +32,7 @@ export function ReviewDialog({
   onClose,
 }: ReviewDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const hasRequiredSelections = selectedCandidates.length === requiredSelections
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -61,8 +64,8 @@ export function ReviewDialog({
 
       <div className="review-body">
         <div className="review-selection-title">
-          <strong>선택한 이모티콘</strong>
-          <span>{selectedCandidates.length}개</span>
+          <strong>선택한 이모티콘 · 정확히 {requiredSelections}개 필수</strong>
+          <span>{selectedCandidates.length}/{requiredSelections}개</span>
         </div>
         <div className="review-grid">
           {selectedCandidates.map((candidate) => (
@@ -97,7 +100,7 @@ export function ReviewDialog({
           <button type="button" className="back-button" onClick={onClose} disabled={submitting}>
             다시 고르기
           </button>
-          <button type="button" className="submit-button" onClick={onSubmit} disabled={submitting || selectedCandidates.length === 0}>
+          <button type="button" className="submit-button" onClick={onSubmit} disabled={submitting || !hasRequiredSelections}>
             {submitting ? (
               <span className="loading-dots">제출 중<span>•••</span></span>
             ) : (

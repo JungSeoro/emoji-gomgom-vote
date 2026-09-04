@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { pollConfig } from './candidates'
+import { candidates, getSelectionCountError, pollConfig } from './candidates'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim()
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()
@@ -38,6 +38,21 @@ const saveDemoVote = (payload: VotePayload, id: string) => {
 }
 
 export const submitVote = async (payload: VotePayload): Promise<VoteResult> => {
+  const selectionCountError = getSelectionCountError(payload.candidateIds.length)
+  if (selectionCountError) {
+    throw new Error(selectionCountError)
+  }
+
+  const uniqueCandidateIds = new Set(payload.candidateIds)
+  if (uniqueCandidateIds.size !== payload.candidateIds.length) {
+    throw new Error('같은 이모티콘을 중복 선택할 수 없어요.')
+  }
+
+  const validCandidateIds = new Set(candidates.map((candidate) => candidate.id))
+  if (payload.candidateIds.some((candidateId) => !validCandidateIds.has(candidateId))) {
+    throw new Error('선택 항목에 유효하지 않은 이모티콘이 포함되어 있어요.')
+  }
+
   const submissionId = crypto.randomUUID()
 
   if (!supabase) {

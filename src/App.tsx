@@ -11,7 +11,7 @@ import { CandidateCard } from './components/CandidateCard'
 import { GalaxyPreview } from './components/GalaxyPreview'
 import { PreviewDialog } from './components/PreviewDialog'
 import { ReviewDialog } from './components/ReviewDialog'
-import { candidateGroups, candidates, pollConfig } from './candidates'
+import { candidateGroups, candidates, getSelectionCountError, pollConfig } from './candidates'
 import { isDemoMode, submitVote, type VoteResult } from './voteService'
 
 type Draft = {
@@ -120,13 +120,9 @@ function App() {
       return
     }
 
-    if (selectedIds.size === 0) {
-      setNotice('마음에 드는 이모티콘을 1개 이상 선택해 주세요.')
-      return
-    }
-
-    if (selectedIds.size > pollConfig.maxSelections) {
-      setNotice(`최대 ${pollConfig.maxSelections}개까지만 선택할 수 있어요.`)
+    const selectionCountError = getSelectionCountError(selectedIds.size)
+    if (selectionCountError) {
+      setNotice(selectionCountError)
       return
     }
 
@@ -137,6 +133,12 @@ function App() {
   }
 
   const handleSubmit = async () => {
+    const selectionCountError = getSelectionCountError(selectedCandidates.length)
+    if (selectionCountError) {
+      setSubmitError(selectionCountError)
+      return
+    }
+
     setSubmitting(true)
     setSubmitError('')
 
@@ -200,7 +202,7 @@ function App() {
           </h1>
           <p>모바일 메시지 화면에서 확인하고<br className="mobile-break" /> 실제로 사용을 하고 싶은 이모티콘에 투표해 주세요.</p>
           <div className="hero-rules">
-            <span><MousePointerClick size={18} /> 최대 {pollConfig.maxSelections}개 PICK</span>
+            <span><MousePointerClick size={18} /> 정확히 {pollConfig.minSelections}개 PICK</span>
             <span><MessageCircleMore size={18} /> 이모티콘을 클릭하여 임시 폰 화면에서 확인!</span>
           </div>
           <div className="hero-mascot" aria-hidden="true">
@@ -250,11 +252,11 @@ function App() {
           <div className="vote-heading">
             <div>
               <span className="eyebrow">MAKE YOUR PICK</span>
-              <h2 id="vote-title"><span className="step-inline">02</span> 마음에 드는 후보를 골라주세요</h2>
-              <p>한 세트로 표시된 후보는 함께 선택하길 권장하지만, 마음에 드는 이모티콘만 골라도 괜찮아요.</p>
+              <h2 id="vote-title"><span className="step-inline">02</span> 마음에 드는 후보 {pollConfig.minSelections}개를 골라주세요</h2>
+              <p>정확히 {pollConfig.minSelections}개를 선택해야 제출할 수 있어요. 한 세트 후보 중 마음에 드는 이모티콘만 골라도 괜찮아요.</p>
             </div>
             <div className="limit-sticker">
-              <span>MAX</span>
+              <span>EXACTLY</span>
               <strong>{pollConfig.maxSelections}</strong>
               <small>PICKS</small>
             </div>
@@ -354,6 +356,7 @@ function App() {
         selectedCandidates={selectedCandidates}
         feedback={feedback}
         feedbackMaxLength={pollConfig.feedbackMaxLength}
+        requiredSelections={pollConfig.minSelections}
         submitting={submitting}
         submitError={submitError}
         onFeedbackChange={setFeedback}

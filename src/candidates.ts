@@ -53,8 +53,31 @@ export type CandidateGroup = {
 
 export const pollConfig = {
   id: 'd844f5be-88d4-4a98-95d4-cb6e569f68bf',
+  minSelections: 20,
   maxSelections: 20,
   feedbackMaxLength: 500,
+}
+
+export const getSelectionCountError = (selectionCount: number) => {
+  const { minSelections, maxSelections } = pollConfig
+
+  if (selectionCount >= minSelections && selectionCount <= maxSelections) return null
+
+  if (minSelections === maxSelections) {
+    const difference = minSelections - selectionCount
+
+    if (difference > 0) {
+      return `이모티콘을 정확히 ${minSelections}개 선택해 주세요. ${difference}개 더 골라야 해요.`
+    }
+
+    return `이모티콘을 정확히 ${minSelections}개 선택해 주세요. ${Math.abs(difference)}개를 빼 주세요.`
+  }
+
+  if (selectionCount < minSelections) {
+    return `이모티콘을 최소 ${minSelections}개 선택해 주세요.`
+  }
+
+  return `이모티콘은 최대 ${maxSelections}개까지 선택할 수 있어요.`
 }
 
 export const candidateGroups: CandidateGroup[] = [

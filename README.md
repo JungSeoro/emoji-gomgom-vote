@@ -55,7 +55,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 
 ## 후보와 세트 추가
 
-후보 정보는 `src/candidates.ts`에서 관리합니다. 같은 행에 속하는 후보들은 하나의 `CandidateGroup` 안에 넣고 `isSet: true`로 설정합니다. 각 후보의 `setId`에는 같은 세트 식별자를 넣습니다. 후보 ID와 캠페인의 최대 선택 수는 `supabase/schema.sql`에도 동일하게 반영해야 합니다.
+후보 정보는 `src/candidates.ts`에서 관리합니다. 같은 행에 속하는 후보들은 하나의 `CandidateGroup` 안에 넣고 `isSet: true`로 설정합니다. 각 후보의 `setId`에는 같은 세트 식별자를 넣습니다. 후보 ID와 캠페인의 최소·최대 선택 수는 `supabase/schema.sql`에도 동일하게 반영해야 합니다.
 
 현재 PNG 36개를 등록했습니다. 같은 행에 있던 6개 그룹은 세트로 구성했고 나머지 20개는 단독 후보로 구성했습니다. 중복된 `Frame 435.png`와 해당 후보는 제거하고 `Frame 12.png`만 유지합니다.
 
@@ -82,6 +82,7 @@ Vite의 `base`는 상대 경로로 설정되어 기본 프로젝트 주소와 �
 
 ## 설정
 
+- 최소 선택 수: `src/candidates.ts`의 `pollConfig.minSelections`
 - 최대 선택 수: `src/candidates.ts`의 `pollConfig.maxSelections`
 - 의견 최대 글자 수: `src/candidates.ts`의 `pollConfig.feedbackMaxLength`
 - 투표 공개 상태: Supabase `vote_campaigns.is_published`

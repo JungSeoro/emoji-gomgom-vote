@@ -1,13 +1,33 @@
 create table if not exists public.vote_campaigns (
   id uuid primary key,
   title text not null check (char_length(title) between 1 and 100),
-  max_selections smallint not null check (max_selections between 1 and 100),
+  min_selections smallint not null,
+  max_selections smallint not null,
   opens_at timestamptz not null default now(),
   closes_at timestamptz,
   is_published boolean not null default false,
   created_at timestamptz not null default now(),
+  constraint vote_campaigns_selection_range_check
+    check (min_selections between 1 and 100 and max_selections between min_selections and 100),
   check (closes_at is null or closes_at > opens_at)
 );
+
+alter table public.vote_campaigns
+  add column if not exists min_selections smallint;
+
+update public.vote_campaigns
+set min_selections = 1
+where min_selections is null;
+
+alter table public.vote_campaigns
+  alter column min_selections set not null;
+
+alter table public.vote_campaigns
+  drop constraint if exists vote_campaigns_selection_range_check;
+
+alter table public.vote_campaigns
+  add constraint vote_campaigns_selection_range_check
+  check (min_selections between 1 and 100 and max_selections between min_selections and 100);
 
 create table if not exists public.emoji_candidates (
   id uuid primary key,
@@ -83,6 +103,7 @@ as $$
 declare
   v_nickname text;
   v_feedback text;
+  v_min_selections integer;
   v_max_selections integer;
   v_choice_count integer;
   v_distinct_count integer;
@@ -103,8 +124,8 @@ begin
     raise exception '수정 의견은 500자 이하로 입력해 주세요.' using errcode = '22023';
   end if;
 
-  select campaign.max_selections
-  into v_max_selections
+  select campaign.min_selections, campaign.max_selections
+  into v_min_selections, v_max_selections
   from public.vote_campaigns as campaign
   where campaign.id = p_campaign_id
     and campaign.is_published
@@ -117,8 +138,8 @@ begin
 
   v_choice_count := coalesce(cardinality(p_candidate_ids), 0);
 
-  if v_choice_count < 1 or v_choice_count > v_max_selections then
-    raise exception '선택 가능한 이모티콘은 최대 %개입니다.', v_max_selections using errcode = '22023';
+  if v_choice_count < v_min_selections or v_choice_count > v_max_selections then
+    raise exception '선택 가능한 이모티콘은 최소 %개, 최대 %개입니다.', v_min_selections, v_max_selections using errcode = '22023';
   end if;
 
   select count(distinct item.candidate_id)
@@ -155,10 +176,11 @@ $$;
 revoke execute on function public.submit_vote(uuid, text, uuid[], text, uuid) from public, anon, authenticated;
 grant execute on function public.submit_vote(uuid, text, uuid[], text, uuid) to anon;
 
-insert into public.vote_campaigns (id, title, max_selections, is_published)
-values ('d844f5be-88d4-4a98-95d4-cb6e569f68bf', '곰곰 이모티콘 투표', 20, true)
+insert into public.vote_campaigns (id, title, min_selections, max_selections, is_published)
+values ('d844f5be-88d4-4a98-95d4-cb6e569f68bf', '곰곰 이모티콘 투표', 20, 20, true)
 on conflict (id) do update
 set title = excluded.title,
+    min_selections = excluded.min_selections,
     max_selections = excluded.max_selections,
     is_published = excluded.is_published;
 

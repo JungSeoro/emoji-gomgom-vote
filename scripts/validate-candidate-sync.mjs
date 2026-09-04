@@ -4,6 +4,11 @@ const candidateSource = await readFile('src/candidates.ts', 'utf8')
 const schemaSource = await readFile('supabase/schema.sql', 'utf8')
 
 const campaignId = candidateSource.match(/export const pollConfig = \{\s+id: '([^']+)'/)?.[1]
+const minSelections = Number(candidateSource.match(/minSelections:\s*(\d+)/)?.[1])
+const maxSelections = Number(candidateSource.match(/maxSelections:\s*(\d+)/)?.[1])
+const campaignSeed = schemaSource.match(
+  /insert into public\.vote_campaigns \(id, title, min_selections, max_selections, is_published\)\s+values \('([^']+)', '[^']+', (\d+), (\d+), (?:true|false)\)/,
+)
 const candidatePattern = /id: '([0-9a-f-]{36})',\s+code: '(\d{2})',\s+name: '([^']+)',[\s\S]*?setId: (?:'([^']+)'|null),/g
 const schemaPattern = /\('([0-9a-f-]{36})', '([0-9a-f-]{36})', '(\d{2})', '([^']+)', (null|'[^']+'), (\d+)\)/g
 
@@ -29,6 +34,17 @@ const fail = (message) => {
 }
 
 if (!campaignId) fail('앱 캠페인 ID를 찾을 수 없습니다.')
+if (!Number.isInteger(minSelections) || !Number.isInteger(maxSelections)) {
+  fail('앱의 최소·최대 선택 수를 찾을 수 없습니다.')
+}
+if (minSelections < 1 || minSelections > maxSelections) {
+  fail('앱의 최소·최대 선택 수가 올바르지 않습니다.')
+}
+if (!campaignSeed) fail('DB 캠페인 시드를 찾을 수 없습니다.')
+if (campaignSeed[1] !== campaignId) fail('앱과 DB 캠페인 ID가 일치하지 않습니다.')
+if (Number(campaignSeed[2]) !== minSelections || Number(campaignSeed[3]) !== maxSelections) {
+  fail('앱과 DB의 최소·최대 선택 수가 일치하지 않습니다.')
+}
 if (appCandidates.length === 0) fail('앱 후보를 찾을 수 없습니다.')
 if (appCandidates.length !== databaseCandidates.length) {
   fail(`앱 후보 ${appCandidates.length}개와 DB 후보 ${databaseCandidates.length}개가 일치하지 않습니다.`)
