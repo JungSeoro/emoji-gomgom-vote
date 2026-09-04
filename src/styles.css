@@ -1631,7 +1631,7 @@ dialog::backdrop {
   letter-spacing: 0.14em;
 }
 
-.success-shell {
+.site-shell.success-shell {
   padding: 0;
 }
 
@@ -1642,9 +1642,108 @@ dialog::backdrop {
   overflow: hidden;
   place-items: center;
   padding: 40px 20px;
-  background:
-    repeating-conic-gradient(from -15deg at 50% 110%, rgba(255, 211, 61, 0.18) 0 8deg, transparent 8deg 19deg),
-    var(--blue);
+  background: var(--blue);
+  isolation: isolate;
+}
+
+.success-sticker-field {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.success-sticker {
+  position: absolute;
+  display: grid;
+  width: clamp(110px, 12vw, 190px);
+  aspect-ratio: 1;
+  place-items: center;
+}
+
+.success-sticker img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter:
+    drop-shadow(3px 0 0 #fff)
+    drop-shadow(-3px 0 0 #fff)
+    drop-shadow(0 3px 0 #fff)
+    drop-shadow(0 -3px 0 #fff)
+    drop-shadow(8px 10px 0 rgba(11, 23, 50, 0.42));
+  user-select: none;
+}
+
+.success-sticker-1 {
+  top: -4%;
+  left: 2%;
+  width: clamp(145px, 14vw, 215px);
+  transform: rotate(-12deg);
+}
+
+.success-sticker-2 {
+  top: 8%;
+  left: 19%;
+  width: clamp(95px, 9vw, 140px);
+  transform: rotate(11deg);
+}
+
+.success-sticker-3 {
+  top: 35%;
+  left: -1%;
+  width: clamp(125px, 11vw, 175px);
+  transform: rotate(8deg);
+}
+
+.success-sticker-4 {
+  bottom: 10%;
+  left: 6%;
+  width: clamp(140px, 13vw, 205px);
+  transform: rotate(-9deg);
+}
+
+.success-sticker-5 {
+  bottom: -5%;
+  left: 24%;
+  width: clamp(115px, 10vw, 160px);
+  transform: rotate(14deg);
+}
+
+.success-sticker-6 {
+  top: -5%;
+  right: 3%;
+  width: clamp(140px, 14vw, 215px);
+  transform: rotate(13deg);
+}
+
+.success-sticker-7 {
+  top: 13%;
+  right: 19%;
+  width: clamp(100px, 9vw, 145px);
+  transform: rotate(-10deg);
+}
+
+.success-sticker-8 {
+  top: 38%;
+  right: -1%;
+  width: clamp(125px, 11vw, 180px);
+  transform: rotate(-8deg);
+}
+
+.success-sticker-9 {
+  right: 6%;
+  bottom: 10%;
+  width: clamp(140px, 13vw, 200px);
+  transform: rotate(10deg);
+}
+
+.success-sticker-10 {
+  right: 24%;
+  bottom: -5%;
+  width: clamp(110px, 10vw, 155px);
+  transform: rotate(-13deg);
 }
 
 .success-card {
@@ -1759,38 +1858,6 @@ dialog::backdrop {
   transition: background-color 160ms ease;
 }
 
-.success-burst {
-  position: absolute;
-  z-index: 1;
-  border: 3px solid var(--ink);
-  box-shadow: 6px 7px 0 var(--ink);
-  font-family: 'Black Han Sans', sans-serif;
-}
-
-.burst-one {
-  top: 10%;
-  left: 8%;
-  display: grid;
-  width: 120px;
-  height: 120px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--sky);
-  font-size: 60px;
-  transform: rotate(-12deg);
-  color: var(--ink);
-}
-
-.burst-two {
-  right: 7%;
-  bottom: 12%;
-  padding: 18px 20px 13px;
-  background: var(--coral);
-  color: var(--ink);
-  font-size: 42px;
-  transform: rotate(9deg);
-}
-
 .mobile-break {
   display: none;
 }
@@ -1859,6 +1926,10 @@ dialog::backdrop {
 @media (max-width: 740px) {
   .site-shell {
     padding-bottom: 102px;
+  }
+
+  .success-page {
+    padding: 64px 20px;
   }
 
   .hero {
@@ -2258,18 +2329,75 @@ dialog::backdrop {
     height: 94px;
   }
 
-  .burst-one {
-    top: 4%;
-    left: -30px;
-    width: 90px;
-    height: 90px;
-    font-size: 45px;
+  .success-sticker {
+    width: 94px;
   }
 
-  .burst-two {
-    right: -25px;
-    bottom: 4%;
-    font-size: 28px;
+  .success-sticker img {
+    filter:
+      drop-shadow(2px 0 0 #fff)
+      drop-shadow(-2px 0 0 #fff)
+      drop-shadow(0 2px 0 #fff)
+      drop-shadow(0 -2px 0 #fff)
+      drop-shadow(5px 7px 0 rgba(11, 23, 50, 0.42));
+  }
+
+  .success-sticker-1 {
+    top: -20px;
+    left: -25px;
+    width: 112px;
+  }
+
+  .success-sticker-2 {
+    top: 10%;
+    left: -34px;
+    width: 82px;
+  }
+
+  .success-sticker-3 {
+    top: 31%;
+    left: -31px;
+  }
+
+  .success-sticker-4 {
+    bottom: 25%;
+    left: -36px;
+    width: 104px;
+  }
+
+  .success-sticker-5 {
+    bottom: -27px;
+    left: 8%;
+    width: 102px;
+  }
+
+  .success-sticker-6 {
+    top: -20px;
+    right: -24px;
+    width: 112px;
+  }
+
+  .success-sticker-7 {
+    top: 11%;
+    right: -31px;
+    width: 84px;
+  }
+
+  .success-sticker-8 {
+    top: 34%;
+    right: -32px;
+  }
+
+  .success-sticker-9 {
+    right: -34px;
+    bottom: 24%;
+    width: 106px;
+  }
+
+  .success-sticker-10 {
+    right: 8%;
+    bottom: -28px;
+    width: 100px;
   }
 
   .mobile-break {

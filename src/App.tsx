@@ -22,6 +22,11 @@ type Draft = {
 
 const draftKey = 'emoji-gomgom-vote-draft'
 const heroCandidate = candidates.find((candidate) => candidate.code === '11') ?? candidates[0] ?? null
+const successStickerCodes = ['15', '09', '11', '16', '26', '27', '29', '13', '25', '01']
+const successStickerCandidates = successStickerCodes.flatMap((code) => {
+  const candidate = candidates.find((item) => item.code === code)
+  return candidate ? [candidate] : []
+})
 
 const readDraft = (): Draft => {
   try {
@@ -370,8 +375,13 @@ type SuccessScreenProps = {
 function SuccessScreen({ nickname, selectedCandidates, demo, onRestart }: SuccessScreenProps) {
   return (
     <main className="success-page">
-      <div className="success-burst burst-one" aria-hidden="true">★</div>
-      <div className="success-burst burst-two" aria-hidden="true">WOW</div>
+      <div className="success-sticker-field" aria-hidden="true">
+        {successStickerCandidates.map((candidate, index) => (
+          <div className={`success-sticker success-sticker-${index + 1}`} key={candidate.id}>
+            <img src={candidate.image} alt="" decoding="async" draggable={false} />
+          </div>
+        ))}
+      </div>
       <div className="success-card">
         <div className="success-check"><Check size={40} strokeWidth={4} /></div>
         <span className="eyebrow">VOTE COMPLETE</span>
