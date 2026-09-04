@@ -375,6 +375,7 @@ to service_role;
 drop function if exists public.get_vote_results(uuid, text);
 drop function if exists public.get_vote_results(uuid, text, integer, integer);
 drop function if exists public.get_vote_results(text, uuid, text, integer, integer);
+drop function if exists public.get_vote_results(text, uuid, text, text, integer, integer);
 drop function if exists public.unlock_vote_results(text, text);
 drop function if exists public.lock_vote_results(text);
 
@@ -488,10 +489,11 @@ begin
 end;
 $$;
 
-create or replace function public.get_vote_results(
+create function public.get_vote_results(
   p_session_hash text,
   p_campaign_id uuid,
-  p_nickname_filter text default null,
+  p_nickname_filter text,
+  p_nickname_filter_mode text,
   p_page integer default 1,
   p_page_size integer default 50
 )
@@ -529,6 +531,11 @@ begin
     raise exception '페이지 크기는 1 이상 100 이하여야 합니다.' using errcode = '22023';
   end if;
 
+  if p_nickname_filter_mode is null
+    or p_nickname_filter_mode not in ('include', 'exclude') then
+    raise exception '닉네임 필터 방식이 올바르지 않습니다.' using errcode = '22023';
+  end if;
+
   if p_campaign_id is null
     or not exists (
       select 1
@@ -551,7 +558,14 @@ begin
     where submission.campaign_id = p_campaign_id
       and (
         v_nickname_filter is null
-        or strpos(lower(submission.nickname), lower(v_nickname_filter)) > 0
+        or (
+          p_nickname_filter_mode = 'include'
+          and strpos(lower(submission.nickname), lower(v_nickname_filter)) > 0
+        )
+        or (
+          p_nickname_filter_mode = 'exclude'
+          and strpos(lower(submission.nickname), lower(v_nickname_filter)) = 0
+        )
       )
   ),
   filtered_counts as (
@@ -630,6 +644,7 @@ begin
   select jsonb_build_object(
     'campaign_id', p_campaign_id,
     'nickname_filter', coalesce(v_nickname_filter, ''),
+    'nickname_filter_mode', p_nickname_filter_mode,
     'page', p_page,
     'page_size', p_page_size,
     'has_previous_page', p_page > 1,
@@ -691,8 +706,8 @@ $$;
 
 revoke execute on function public.unlock_vote_results(text, text) from public, anon, authenticated, service_role;
 revoke execute on function public.lock_vote_results(text) from public, anon, authenticated, service_role;
-revoke execute on function public.get_vote_results(text, uuid, text, integer, integer) from public, anon, authenticated, service_role;
+revoke execute on function public.get_vote_results(text, uuid, text, text, integer, integer) from public, anon, authenticated, service_role;
 
 grant execute on function public.unlock_vote_results(text, text) to service_role;
 grant execute on function public.lock_vote_results(text) to service_role;
-grant execute on function public.get_vote_results(text, uuid, text, integer, integer) to service_role;
+grant execute on function public.get_vote_results(text, uuid, text, text, integer, integer) to service_role;

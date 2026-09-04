@@ -156,12 +156,14 @@ const handleLogin = async (request: Request, body: JsonRecord) => {
 const handleResults = async (request: Request, body: JsonRecord) => {
   const sessionToken = body.sessionToken
   const nicknameFilter = typeof body.nicknameFilter === 'string' ? body.nicknameFilter.trim() : ''
+  const filterMode = body.filterMode === undefined ? 'include' : body.filterMode
   const page = body.page
 
   if (
     typeof sessionToken !== 'string'
     || !sessionTokenPattern.test(sessionToken)
     || body.campaignId !== campaignId
+    || (filterMode !== 'include' && filterMode !== 'exclude')
     || nicknameFilter.length > 20
     || !Number.isSafeInteger(page)
     || (page as number) < 1
@@ -175,6 +177,7 @@ const handleResults = async (request: Request, body: JsonRecord) => {
     p_session_hash: sessionHash,
     p_campaign_id: campaignId,
     p_nickname_filter: nicknameFilter || null,
+    p_nickname_filter_mode: filterMode,
     p_page: page,
     p_page_size: 50,
   })

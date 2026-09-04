@@ -2548,7 +2548,9 @@ dialog::backdrop {
 .admin-search-button,
 .admin-alert-retry,
 .admin-filter-clear,
-.admin-search-reset {
+.admin-search-reset,
+.admin-selection-clear,
+.admin-submission-select-button {
   cursor: pointer;
 }
 
@@ -2944,6 +2946,32 @@ dialog::backdrop {
   color: var(--blue);
 }
 
+.admin-ranking-section:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+
+.admin-selection-clear {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 7px;
+  background: var(--blue-pale);
+  color: var(--blue-deep);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-selection-clear:hover:not(:disabled) {
+  background: var(--yellow);
+}
+
 .admin-section-count {
   flex: 0 0 auto;
   padding: 6px 9px;
@@ -2956,7 +2984,8 @@ dialog::backdrop {
 }
 
 .admin-ranking-list,
-.admin-selected-code-list {
+.admin-selected-code-list,
+.admin-submission-candidate-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3098,19 +3127,158 @@ dialog::backdrop {
   text-align: right;
 }
 
+.admin-selected-submission {
+  margin-top: 20px;
+}
+
+.admin-selected-submission-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--yellow);
+}
+
+.admin-selected-submission-nickname {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+
+.admin-selected-submission-meta time {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.admin-submission-candidate-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin-submission-candidate {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: 3px 3px 0 var(--blue-pale);
+}
+
+.admin-submission-candidate-image,
+.admin-submission-candidate-image-placeholder {
+  display: grid;
+  width: 70px;
+  height: 70px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.admin-submission-candidate-image {
+  object-fit: contain;
+}
+
+.admin-submission-candidate-image-placeholder {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-submission-candidate-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-submission-candidate-copy strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-selected-submission-empty {
+  margin: 14px 0 0;
+  padding: 28px 16px;
+  box-sizing: border-box;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .admin-submission-list {
   display: grid;
   gap: 18px;
   margin-top: 20px;
 }
 
+.admin-submission-select-help {
+  margin: 12px 0 -5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .admin-submission-card {
+  position: relative;
   min-width: 0;
   padding: 20px;
+  box-sizing: border-box;
   border: 2px solid var(--ink);
   border-radius: 11px;
   background: var(--panel);
   box-shadow: 4px 4px 0 var(--blue-pale);
+}
+
+.admin-submission-card:hover {
+  background: #fffbe9;
+  box-shadow: 5px 5px 0 var(--yellow);
+}
+
+.admin-submission-card-selected,
+.admin-submission-card-selected:hover {
+  background: #fff5bd;
+  box-shadow: 5px 5px 0 var(--blue);
+}
+
+.admin-submission-select-button {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+}
+
+.admin-submission-select-button:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.admin-submission-select-button:disabled {
+  cursor: wait;
 }
 
 .admin-submission-header {
@@ -3123,6 +3291,7 @@ dialog::backdrop {
 .admin-submission-person {
   display: flex;
   min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -3141,6 +3310,17 @@ dialog::backdrop {
   color: var(--muted);
   font-family: monospace;
   font-size: 9px;
+  font-weight: 700;
+}
+
+.admin-submission-selected-badge {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--blue);
+  color: var(--white);
+  font-size: 8px;
   font-weight: 700;
 }
 
@@ -3559,6 +3739,18 @@ dialog::backdrop {
     height: 58px;
   }
 
+  .admin-submission-candidate {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 9px;
+    padding: 9px;
+  }
+
+  .admin-submission-candidate-image,
+  .admin-submission-candidate-image-placeholder {
+    width: 58px;
+    height: 58px;
+  }
+
   .admin-ranking-summary {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -3620,6 +3812,15 @@ dialog::backdrop {
 
   .admin-search-button {
     min-height: 50px;
+  }
+
+  .admin-selected-submission-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-selected-submission-meta time {
+    text-align: left;
   }
 
   .admin-kpi-card {

@@ -22,6 +22,8 @@ export type CandidateVoteResult = SelectedCandidateResult & {
   voteCount: number
 }
 
+export type NicknameFilterMode = 'exclude'
+
 export type VoteSubmission = {
   id: string
   nickname: string
@@ -33,6 +35,7 @@ export type VoteSubmission = {
 export type VoteResultsData = {
   campaignId: string
   nicknameFilter: string
+  nicknameFilterMode: NicknameFilterMode
   page: number
   pageSize: number
   hasPreviousPage: boolean
@@ -110,6 +113,14 @@ const readBoolean = (value: unknown, fieldName: string): boolean => {
   return value
 }
 
+const readNicknameFilterMode = (value: unknown): NicknameFilterMode => {
+  if (value !== 'exclude') {
+    throw new Error('투표 결과의 nickname_filter_mode 형식이 올바르지 않아요.')
+  }
+
+  return value
+}
+
 const readArray = (value: unknown, fieldName: string): unknown[] => {
   if (!Array.isArray(value)) {
     throw new Error(`투표 결과의 ${fieldName} 형식이 올바르지 않아요.`)
@@ -167,6 +178,7 @@ const parseVoteResults = (value: unknown): VoteResultsData => {
   return {
     campaignId: readString(results.campaign_id, 'campaign_id'),
     nicknameFilter: readString(results.nickname_filter, 'nickname_filter'),
+    nicknameFilterMode: readNicknameFilterMode(results.nickname_filter_mode),
     page: readCount(results.page, 'page'),
     pageSize: readCount(results.page_size, 'page_size'),
     hasPreviousPage: readBoolean(results.has_previous_page, 'has_previous_page'),
@@ -465,6 +477,7 @@ export const fetchVoteResults = async (
       sessionToken: session.token,
       campaignId: pollConfig.id,
       nicknameFilter: cleanedFilter,
+      filterMode: 'exclude' satisfies NicknameFilterMode,
       page,
     }),
     '결과 응답',
