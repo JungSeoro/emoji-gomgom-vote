@@ -156,7 +156,7 @@ revoke execute on function public.submit_vote(uuid, text, uuid[], text, uuid) fr
 grant execute on function public.submit_vote(uuid, text, uuid[], text, uuid) to anon;
 
 insert into public.vote_campaigns (id, title, max_selections, is_published)
-values ('d844f5be-88d4-4a98-95d4-cb6e569f68bf', '곰곰 이모티콘 투표', 5, true)
+values ('d844f5be-88d4-4a98-95d4-cb6e569f68bf', '곰곰 이모티콘 투표', 20, true)
 on conflict (id) do update
 set title = excluded.title,
     max_selections = excluded.max_selections,

@@ -2286,7 +2286,7 @@ dialog::backdrop {
   }
 
   .review-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 9px;
   }
 
@@ -2325,8 +2325,13 @@ dialog::backdrop {
   }
 
   .success-picks > div {
-    width: 78px;
-    height: 94px;
+    width: 64px;
+    height: 78px;
+  }
+
+  .success-picks {
+    gap: 8px;
+    margin: 24px 0;
   }
 
   .success-sticker {
@@ -2419,6 +2424,10 @@ dialog::backdrop {
 }
 
 @media (max-width: 390px) {
+  .clear-trigger {
+    display: none;
+  }
+
   .hero h1 {
     font-size: 47px;
   }

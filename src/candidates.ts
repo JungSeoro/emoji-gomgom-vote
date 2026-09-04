@@ -53,7 +53,7 @@ export type CandidateGroup = {
 
 export const pollConfig = {
   id: 'd844f5be-88d4-4a98-95d4-cb6e569f68bf',
-  maxSelections: 5,
+  maxSelections: 20,
   feedbackMaxLength: 500,
 }
 
