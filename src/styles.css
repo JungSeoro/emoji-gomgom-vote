@@ -2549,7 +2549,7 @@ dialog::backdrop {
 .admin-alert-retry,
 .admin-filter-clear,
 .admin-search-reset,
-.admin-selection-clear,
+.admin-exclusion-clear,
 .admin-submission-select-button {
   cursor: pointer;
 }
@@ -2861,7 +2861,7 @@ dialog::backdrop {
 
 .admin-kpi-section {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 18px;
   margin-top: 34px;
 }
@@ -2946,32 +2946,6 @@ dialog::backdrop {
   color: var(--blue);
 }
 
-.admin-ranking-section:focus-visible {
-  outline: 3px solid var(--blue);
-  outline-offset: 4px;
-}
-
-.admin-selection-clear {
-  display: inline-flex;
-  min-height: 38px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 10px;
-  box-sizing: border-box;
-  border: 2px solid var(--ink);
-  border-radius: 7px;
-  background: var(--blue-pale);
-  color: var(--blue-deep);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.admin-selection-clear:hover:not(:disabled) {
-  background: var(--yellow);
-}
-
 .admin-section-count {
   flex: 0 0 auto;
   padding: 6px 9px;
@@ -2983,9 +2957,50 @@ dialog::backdrop {
   font-weight: 700;
 }
 
+.admin-submission-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.admin-exclusion-status {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: #ffe0d8;
+  color: #6e2011;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-exclusion-clear {
+  display: inline-flex;
+  min-height: 31px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: var(--white);
+  color: var(--blue-deep);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.admin-exclusion-clear:hover:not(:disabled) {
+  background: var(--blue-pale);
+}
+
 .admin-ranking-list,
-.admin-selected-code-list,
-.admin-submission-candidate-list {
+.admin-selected-code-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3127,103 +3142,6 @@ dialog::backdrop {
   text-align: right;
 }
 
-.admin-selected-submission {
-  margin-top: 20px;
-}
-
-.admin-selected-submission-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 13px 14px;
-  box-sizing: border-box;
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-  background: var(--yellow);
-}
-
-.admin-selected-submission-nickname {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 15px;
-}
-
-.admin-selected-submission-meta time {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 700;
-  text-align: right;
-}
-
-.admin-submission-candidate-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.admin-submission-candidate {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 70px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  box-sizing: border-box;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: var(--panel);
-  box-shadow: 3px 3px 0 var(--blue-pale);
-}
-
-.admin-submission-candidate-image,
-.admin-submission-candidate-image-placeholder {
-  display: grid;
-  width: 70px;
-  height: 70px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--white);
-}
-
-.admin-submission-candidate-image {
-  object-fit: contain;
-}
-
-.admin-submission-candidate-image-placeholder {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.admin-submission-candidate-copy {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.admin-submission-candidate-copy strong {
-  overflow: hidden;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.admin-selected-submission-empty {
-  margin: 14px 0 0;
-  padding: 28px 16px;
-  box-sizing: border-box;
-  border: 2px dashed var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-}
-
 .admin-submission-list {
   display: grid;
   gap: 18px;
@@ -3254,10 +3172,10 @@ dialog::backdrop {
   box-shadow: 5px 5px 0 var(--yellow);
 }
 
-.admin-submission-card-selected,
-.admin-submission-card-selected:hover {
-  background: #fff5bd;
-  box-shadow: 5px 5px 0 var(--blue);
+.admin-submission-card-excluded,
+.admin-submission-card-excluded:hover {
+  background: #ffe9e3;
+  box-shadow: 5px 5px 0 var(--coral);
 }
 
 .admin-submission-select-button {
@@ -3275,10 +3193,6 @@ dialog::backdrop {
 .admin-submission-select-button:focus-visible {
   outline: 3px solid var(--blue);
   outline-offset: 3px;
-}
-
-.admin-submission-select-button:disabled {
-  cursor: wait;
 }
 
 .admin-submission-header {
@@ -3313,15 +3227,21 @@ dialog::backdrop {
   font-weight: 700;
 }
 
-.admin-submission-selected-badge {
+.admin-submission-status-badge {
   flex: 0 0 auto;
   padding: 3px 6px;
+  box-sizing: border-box;
   border: 1px solid var(--ink);
   border-radius: 999px;
-  background: var(--blue);
-  color: var(--white);
+  background: var(--blue-pale);
+  color: var(--blue-deep);
   font-size: 8px;
   font-weight: 700;
+}
+
+.admin-submission-status-badge-excluded {
+  background: var(--coral);
+  color: var(--ink);
 }
 
 .admin-submission-date {
@@ -3566,6 +3486,10 @@ dialog::backdrop {
 }
 
 @media (max-width: 1100px) {
+  .admin-kpi-section {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .admin-dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -3666,8 +3590,13 @@ dialog::backdrop {
     align-items: flex-start;
   }
 
-  .admin-search-section > .admin-section-heading {
+  .admin-search-section > .admin-section-heading,
+  .admin-submissions-section > .admin-section-heading {
     flex-direction: column;
+  }
+
+  .admin-submission-heading-actions {
+    width: 100%;
   }
 
   .admin-section-title {
@@ -3739,18 +3668,6 @@ dialog::backdrop {
     height: 58px;
   }
 
-  .admin-submission-candidate {
-    grid-template-columns: 58px minmax(0, 1fr);
-    gap: 9px;
-    padding: 9px;
-  }
-
-  .admin-submission-candidate-image,
-  .admin-submission-candidate-image-placeholder {
-    width: 58px;
-    height: 58px;
-  }
-
   .admin-ranking-summary {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -3812,15 +3729,6 @@ dialog::backdrop {
 
   .admin-search-button {
     min-height: 50px;
-  }
-
-  .admin-selected-submission-meta {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .admin-selected-submission-meta time {
-    text-align: left;
   }
 
   .admin-kpi-card {

@@ -4,7 +4,9 @@ const campaignId = 'd844f5be-88d4-4a98-95d4-cb6e569f68bf'
 const githubPagesOrigin = 'https://jungseoro.github.io'
 const productionOrigin = 'https://gomgom-vote.jungseoro.com'
 const sessionTokenPattern = /^[0-9a-f]{64}$/
-const requestBodyLimit = 4096
+const submissionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const maxExcludedSubmissionIds = 100
+const requestBodyLimit = 8192
 
 type JsonRecord = Record<string, unknown>
 
@@ -157,6 +159,7 @@ const handleResults = async (request: Request, body: JsonRecord) => {
   const sessionToken = body.sessionToken
   const nicknameFilter = typeof body.nicknameFilter === 'string' ? body.nicknameFilter.trim() : ''
   const filterMode = body.filterMode === undefined ? 'include' : body.filterMode
+  const hasExcludedSubmissionIds = body.excludedSubmissionIds !== undefined
   const page = body.page
 
   if (
@@ -172,15 +175,47 @@ const handleResults = async (request: Request, body: JsonRecord) => {
     return jsonResponse(request, { error: 'invalid_request' }, 400)
   }
 
+  let excludedSubmissionIds: string[] = []
+
+  if (hasExcludedSubmissionIds) {
+    if (filterMode !== 'include' || !Array.isArray(body.excludedSubmissionIds)) {
+      return jsonResponse(request, { error: 'invalid_request' }, 400)
+    }
+
+    const rawExcludedSubmissionIds = body.excludedSubmissionIds
+    if (
+      rawExcludedSubmissionIds.length > maxExcludedSubmissionIds
+      || rawExcludedSubmissionIds.some((value) => (
+        typeof value !== 'string' || !submissionIdPattern.test(value)
+      ))
+    ) {
+      return jsonResponse(request, { error: 'invalid_request' }, 400)
+    }
+
+    excludedSubmissionIds = [...new Set(
+      rawExcludedSubmissionIds.map((submissionId) => submissionId.toLowerCase()),
+    )]
+  }
+
   const sessionHash = await sha256Hex(sessionToken)
-  const { data, error } = await database!.rpc('get_vote_results', {
-    p_session_hash: sessionHash,
-    p_campaign_id: campaignId,
-    p_nickname_filter: nicknameFilter || null,
-    p_nickname_filter_mode: filterMode,
-    p_page: page,
-    p_page_size: 50,
-  })
+  const { data, error } = hasExcludedSubmissionIds
+    ? await database!.rpc('get_vote_results_with_exclusions', {
+        p_session_hash: sessionHash,
+        p_campaign_id: campaignId,
+        p_nickname_filter: nicknameFilter || null,
+        p_nickname_filter_mode: filterMode,
+        p_excluded_submission_ids: excludedSubmissionIds,
+        p_page: page,
+        p_page_size: 50,
+      })
+    : await database!.rpc('get_vote_results', {
+        p_session_hash: sessionHash,
+        p_campaign_id: campaignId,
+        p_nickname_filter: nicknameFilter || null,
+        p_nickname_filter_mode: filterMode,
+        p_page: page,
+        p_page_size: 50,
+      })
 
   if (error?.code === '42501') {
     return jsonResponse(request, { error: 'invalid_session' }, 401)

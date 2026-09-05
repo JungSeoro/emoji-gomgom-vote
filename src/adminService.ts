@@ -7,6 +7,8 @@ const sessionStorageKey = 'emoji-gomgom-results-session'
 const pendingLogoutStorageKey = 'emoji-gomgom-results-pending-logout'
 const sessionIdleMilliseconds = 30 * 60 * 1000
 const requestTimeoutMilliseconds = 15 * 1000
+export const maxExcludedSubmissionCount = 100
+const submissionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export const isAdminConfigured = Boolean(resultsEndpoint && supabasePublishableKey)
 
@@ -22,7 +24,7 @@ export type CandidateVoteResult = SelectedCandidateResult & {
   voteCount: number
 }
 
-export type NicknameFilterMode = 'exclude'
+export type NicknameFilterMode = 'include'
 
 export type VoteSubmission = {
   id: string
@@ -41,7 +43,9 @@ export type VoteResultsData = {
   hasPreviousPage: boolean
   hasNextPage: boolean
   totalSubmissionCount: number
-  filteredSubmissionCount: number
+  matchedSubmissionCount: number
+  aggregatedSubmissionCount: number
+  excludedSubmissionIds: string[]
   feedbackCount: number
   candidateVotes: CandidateVoteResult[]
   submissions: VoteSubmission[]
@@ -114,7 +118,7 @@ const readBoolean = (value: unknown, fieldName: string): boolean => {
 }
 
 const readNicknameFilterMode = (value: unknown): NicknameFilterMode => {
-  if (value !== 'exclude') {
+  if (value !== 'include') {
     throw new Error('투표 결과의 nickname_filter_mode 형식이 올바르지 않아요.')
   }
 
@@ -127,6 +131,31 @@ const readArray = (value: unknown, fieldName: string): unknown[] => {
   }
 
   return value
+}
+
+const normalizeExcludedSubmissionIds = (
+  values: readonly unknown[],
+  fieldName = 'excludedSubmissionIds',
+): string[] => {
+  if (values.length > maxExcludedSubmissionCount) {
+    throw new Error(`집계 제외 항목은 최대 ${maxExcludedSubmissionCount}개까지 선택할 수 있어요.`)
+  }
+
+  const normalizedIds = values.map((value, index) => {
+    if (typeof value !== 'string') {
+      throw new Error(`투표 결과의 ${fieldName}[${index}] 형식이 올바르지 않아요.`)
+    }
+
+    const normalizedId = value.toLowerCase()
+    if (!submissionIdPattern.test(normalizedId)) {
+      throw new Error(`투표 결과의 ${fieldName}[${index}] 형식이 올바르지 않아요.`)
+    }
+
+    return normalizedId
+  })
+  const uniqueIds = [...new Set(normalizedIds)]
+
+  return uniqueIds
 }
 
 const parseSelectedCandidate = (value: unknown, index: number): SelectedCandidateResult => {
@@ -174,6 +203,7 @@ const parseVoteResults = (value: unknown): VoteResultsData => {
   const results = readRecord(value, '응답')
   const candidateVotes = readArray(results.candidate_votes, 'candidate_votes')
   const submissions = readArray(results.submissions, 'submissions')
+  const excludedSubmissionIds = readArray(results.excluded_submission_ids, 'excluded_submission_ids')
 
   return {
     campaignId: readString(results.campaign_id, 'campaign_id'),
@@ -184,7 +214,12 @@ const parseVoteResults = (value: unknown): VoteResultsData => {
     hasPreviousPage: readBoolean(results.has_previous_page, 'has_previous_page'),
     hasNextPage: readBoolean(results.has_next_page, 'has_next_page'),
     totalSubmissionCount: readCount(results.total_submission_count, 'total_submission_count'),
-    filteredSubmissionCount: readCount(results.filtered_submission_count, 'filtered_submission_count'),
+    matchedSubmissionCount: readCount(results.matched_submission_count, 'matched_submission_count'),
+    aggregatedSubmissionCount: readCount(results.aggregated_submission_count, 'aggregated_submission_count'),
+    excludedSubmissionIds: normalizeExcludedSubmissionIds(
+      excludedSubmissionIds,
+      'excluded_submission_ids',
+    ),
     feedbackCount: readCount(results.feedback_count, 'feedback_count'),
     candidateVotes: candidateVotes.map(parseCandidateVote),
     submissions: submissions.map(parseVoteSubmission),
@@ -462,6 +497,7 @@ export const clearAdminSession = (): void => {
 export const fetchVoteResults = async (
   nicknameFilter = '',
   page = 1,
+  excludedSubmissionIds: readonly string[] = [],
 ): Promise<VoteResultsData> => {
   if (!Number.isSafeInteger(page) || page < 1) {
     throw new Error('페이지는 1 이상의 정수여야 해요.')
@@ -471,13 +507,15 @@ export const fetchVoteResults = async (
   if (!session) throw new AdminAccessError()
 
   const cleanedFilter = nicknameFilter.trim()
+  const cleanedExcludedSubmissionIds = normalizeExcludedSubmissionIds(excludedSubmissionIds)
   const response = readRecord(
     await callResultsApi({
       action: 'results',
       sessionToken: session.token,
       campaignId: pollConfig.id,
       nicknameFilter: cleanedFilter,
-      filterMode: 'exclude' satisfies NicknameFilterMode,
+      filterMode: 'include' satisfies NicknameFilterMode,
+      excludedSubmissionIds: cleanedExcludedSubmissionIds,
       page,
     }),
     '결과 응답',

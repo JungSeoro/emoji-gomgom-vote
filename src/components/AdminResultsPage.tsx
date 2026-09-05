@@ -8,6 +8,7 @@ import {
   MessageCircleMore,
   MousePointerClick,
   RefreshCw,
+  Search,
   UserMinus,
   Users,
   X,
@@ -19,6 +20,7 @@ import {
   getAdminSessionDeadline,
   hasAdminSession,
   isAdminConfigured,
+  maxExcludedSubmissionCount,
   retryPendingAdminLogout,
   signInAdmin,
   signOutAdmin,
@@ -57,13 +59,19 @@ export function AdminResultsPage() {
   const [results, setResults] = useState<VoteResultsData | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
   const [resultsError, setResultsError] = useState('')
-  const [selectedSubmissionId, setSelectedSubmissionId] = useState<string | null>(null)
+  const [excludedSubmissionIds, setExcludedSubmissionIds] = useState<string[]>([])
   const requestIdRef = useRef(0)
   const requestedFilterRef = useRef('')
   const requestedPageRef = useRef(1)
+  const retryFilterRef = useRef('')
+  const retryPageRef = useRef(1)
+  const requestedExcludedSubmissionIdsRef = useRef<string[]>([])
+  const confirmedFilterRef = useRef('')
+  const confirmedPageRef = useRef(1)
+  const excludedSubmissionIdsRef = useRef<string[]>([])
+  const confirmedExcludedSubmissionIdsRef = useRef<string[]>([])
   const lastReturnCheckRef = useRef(0)
   const activeResultRequestsRef = useRef(0)
-  const voteDisplayRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const previousTitle = document.title
@@ -71,6 +79,12 @@ export function AdminResultsPage() {
     return () => {
       document.title = previousTitle
     }
+  }, [])
+
+  const replaceExcludedSubmissionIds = useCallback((submissionIds: readonly string[]) => {
+    const nextSubmissionIds = [...submissionIds]
+    excludedSubmissionIdsRef.current = nextSubmissionIds
+    setExcludedSubmissionIds(nextSubmissionIds)
   }, [])
 
   const lockDashboard = useCallback((message: string) => {
@@ -81,29 +95,50 @@ export function AdminResultsPage() {
     setResultsLoading(false)
     setSearchInput('')
     setAppliedFilter('')
-    setSelectedSubmissionId(null)
+    requestedFilterRef.current = ''
+    requestedPageRef.current = 1
+    retryFilterRef.current = ''
+    retryPageRef.current = 1
+    confirmedFilterRef.current = ''
+    confirmedPageRef.current = 1
+    requestedExcludedSubmissionIdsRef.current = []
+    confirmedExcludedSubmissionIdsRef.current = []
+    replaceExcludedSubmissionIds([])
     setAuthError(message)
-  }, [])
+  }, [replaceExcludedSubmissionIds])
 
-  const loadResults = useCallback(async (nicknameFilter = '', page = 1) => {
+  const loadResults = useCallback(async (
+    nicknameFilter = '',
+    page = 1,
+    requestedExcludedSubmissionIds: readonly string[] = excludedSubmissionIdsRef.current,
+  ) => {
     const normalizedFilter = nicknameFilter.trim()
+    const normalizedExcludedSubmissionIds = [...requestedExcludedSubmissionIds]
     const requestId = ++requestIdRef.current
     requestedFilterRef.current = normalizedFilter
     requestedPageRef.current = page
+    retryFilterRef.current = normalizedFilter
+    retryPageRef.current = page
+    requestedExcludedSubmissionIdsRef.current = normalizedExcludedSubmissionIds
     activeResultRequestsRef.current += 1
     setResultsLoading(true)
     setResultsError('')
 
     try {
-      const nextResults = await fetchVoteResults(normalizedFilter, page)
+      const nextResults = await fetchVoteResults(
+        normalizedFilter,
+        page,
+        normalizedExcludedSubmissionIds,
+      )
       if (requestId !== requestIdRef.current) return
       setResults(nextResults)
-      setAppliedFilter(nextResults.nicknameFilter ?? normalizedFilter)
-      setSelectedSubmissionId((currentId) => (
-        currentId && nextResults.submissions.some((submission) => submission.id === currentId)
-          ? currentId
-          : null
-      ))
+      setAppliedFilter(nextResults.nicknameFilter)
+      requestedFilterRef.current = nextResults.nicknameFilter
+      requestedPageRef.current = nextResults.page
+      confirmedFilterRef.current = nextResults.nicknameFilter
+      confirmedPageRef.current = nextResults.page
+      confirmedExcludedSubmissionIdsRef.current = [...nextResults.excludedSubmissionIds]
+      replaceExcludedSubmissionIds(nextResults.excludedSubmissionIds)
     } catch (error) {
       if (requestId !== requestIdRef.current) return
       const message = getErrorMessage(error, '투표 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -113,12 +148,15 @@ export function AdminResultsPage() {
         return
       }
 
+      requestedFilterRef.current = confirmedFilterRef.current
+      requestedPageRef.current = confirmedPageRef.current
+      replaceExcludedSubmissionIds(confirmedExcludedSubmissionIdsRef.current)
       setResultsError(message)
     } finally {
       activeResultRequestsRef.current = Math.max(0, activeResultRequestsRef.current - 1)
       if (requestId === requestIdRef.current) setResultsLoading(false)
     }
-  }, [lockDashboard])
+  }, [lockDashboard, replaceExcludedSubmissionIds])
 
   useEffect(() => {
     let cancelled = false
@@ -233,18 +271,9 @@ export function AdminResultsPage() {
     [results],
   )
 
-  const selectedSubmission = useMemo(
-    () => results?.submissions.find((submission) => submission.id === selectedSubmissionId) ?? null,
-    [results, selectedSubmissionId],
-  )
-
-  const selectedSubmissionCandidates = useMemo(
-    () => selectedSubmission
-      ? [...selectedSubmission.selectedCandidates].sort(
-        (left, right) => left.displayOrder - right.displayOrder,
-      )
-      : [],
-    [selectedSubmission],
+  const excludedSubmissionIdSet = useMemo(
+    () => new Set(excludedSubmissionIds),
+    [excludedSubmissionIds],
   )
 
   const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
@@ -259,7 +288,15 @@ export function AdminResultsPage() {
       setAuthenticated(true)
       setSearchInput('')
       setAppliedFilter('')
-      setSelectedSubmissionId(null)
+      requestedFilterRef.current = ''
+      requestedPageRef.current = 1
+      retryFilterRef.current = ''
+      retryPageRef.current = 1
+      confirmedFilterRef.current = ''
+      confirmedPageRef.current = 1
+      requestedExcludedSubmissionIdsRef.current = []
+      confirmedExcludedSubmissionIdsRef.current = []
+      replaceExcludedSubmissionIds([])
       await loadResults()
     } catch (error) {
       setAuthenticated(false)
@@ -281,7 +318,15 @@ export function AdminResultsPage() {
     setResults(null)
     setSearchInput('')
     setAppliedFilter('')
-    setSelectedSubmissionId(null)
+    requestedFilterRef.current = ''
+    requestedPageRef.current = 1
+    retryFilterRef.current = ''
+    retryPageRef.current = 1
+    confirmedFilterRef.current = ''
+    confirmedPageRef.current = 1
+    requestedExcludedSubmissionIdsRef.current = []
+    confirmedExcludedSubmissionIdsRef.current = []
+    replaceExcludedSubmissionIds([])
     setPassword('')
 
     try {
@@ -293,38 +338,40 @@ export function AdminResultsPage() {
     }
   }
 
-  const handleApplyExclusion = (event: FormEvent<HTMLFormElement>) => {
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setSelectedSubmissionId(null)
-    void loadResults(searchInput)
+    void loadResults(searchInput, 1)
   }
 
-  const clearExclusion = () => {
+  const clearFilter = () => {
     setSearchInput('')
-    setSelectedSubmissionId(null)
-    void loadResults()
+    void loadResults('', 1)
   }
 
-  const handleSubmissionSelection = (submissionId: string, isSelected: boolean) => {
-    const nextSubmissionId = isSelected ? null : submissionId
-    setSelectedSubmissionId(nextSubmissionId)
+  const handleSubmissionExclusion = (submissionId: string) => {
+    const currentSubmissionIds = excludedSubmissionIdsRef.current
+    const isExcluded = currentSubmissionIds.includes(submissionId)
 
-    if (nextSubmissionId) {
-      window.requestAnimationFrame(() => {
-        voteDisplayRef.current?.focus({ preventScroll: true })
-        if (window.innerWidth <= 1100) {
-          voteDisplayRef.current?.scrollIntoView({ block: 'start' })
-        }
-      })
+    if (!isExcluded && currentSubmissionIds.length >= maxExcludedSubmissionCount) {
+      setResultsError(`집계 제외 항목은 최대 ${maxExcludedSubmissionCount}개까지 선택할 수 있어요.`)
+      return
     }
+
+    const nextSubmissionIds = isExcluded
+      ? currentSubmissionIds.filter((currentId) => currentId !== submissionId)
+      : [...currentSubmissionIds, submissionId]
+
+    replaceExcludedSubmissionIds(nextSubmissionIds)
+    void loadResults(
+      requestedFilterRef.current,
+      requestedPageRef.current,
+      nextSubmissionIds,
+    )
   }
 
-  const clearSelectedSubmission = () => {
-    setSelectedSubmissionId(null)
-
-    window.requestAnimationFrame(() => {
-      voteDisplayRef.current?.focus({ preventScroll: true })
-    })
+  const clearExcludedSubmissions = () => {
+    replaceExcludedSubmissionIds([])
+    void loadResults(requestedFilterRef.current, requestedPageRef.current, [])
   }
 
   if (!isAdminConfigured) {
@@ -392,15 +439,15 @@ export function AdminResultsPage() {
     )
   }
 
-  const hasFilteredSubmissions = Boolean(results && results.filteredSubmissionCount > 0)
+  const hasAggregatedSubmissions = Boolean(results && results.aggregatedSubmissionCount > 0)
   const submissionRangeStart = results && results.submissions.length > 0
     ? (results.page - 1) * results.pageSize + 1
     : 0
   const submissionRangeEnd = results
-    ? Math.min(results.page * results.pageSize, results.filteredSubmissionCount)
+    ? Math.min(results.page * results.pageSize, results.matchedSubmissionCount)
     : 0
   const totalPages = results
-    ? Math.max(1, Math.ceil(results.filteredSubmissionCount / results.pageSize))
+    ? Math.max(1, Math.ceil(results.matchedSubmissionCount / results.pageSize))
     : 1
 
   return (
@@ -409,7 +456,7 @@ export function AdminResultsPage() {
         <div className="admin-header-copy">
           <span className="admin-header-kicker">GOMGOM VOTE · PRIVATE</span>
           <h1 className="admin-header-title">투표 결과 모아보기</h1>
-          <p className="admin-header-description">닉네임을 제외한 집계와 참여자가 남긴 피드백을 한곳에서 확인하세요.</p>
+          <p className="admin-header-description">닉네임으로 제출을 찾고 필요한 항목만 제외해 결과를 다시 집계하세요.</p>
         </div>
         <div className="admin-header-actions">
           <button
@@ -441,37 +488,37 @@ export function AdminResultsPage() {
         <section className="admin-search-section" aria-labelledby="admin-search-title">
           <div className="admin-section-heading">
             <div className="admin-section-heading-copy">
-              <span className="admin-section-kicker">EXCLUDE FROM TOTAL</span>
-              <h2 id="admin-search-title" className="admin-section-title">집계에서 닉네임 제외하기</h2>
+              <span className="admin-section-kicker">NICKNAME FILTER</span>
+              <h2 id="admin-search-title" className="admin-section-title">닉네임으로 찾아보기</h2>
             </div>
             {appliedFilter && (
               <div className="admin-filter-status" role="status">
-                <span className="admin-filter-label">제외 중</span>
+                <span className="admin-filter-label">검색 중</span>
                 <strong className="admin-filter-value">{appliedFilter}</strong>
                 <button
                   className="admin-filter-clear"
                   type="button"
-                  onClick={clearExclusion}
+                  onClick={clearFilter}
                   disabled={resultsLoading}
                 >
                   <X size={16} aria-hidden="true" />
-                  <span className="admin-filter-clear-label">닉네임 제외 해제</span>
+                  <span className="admin-filter-clear-label">닉네임 검색 해제</span>
                 </button>
               </div>
             )}
           </div>
 
-          <form className="admin-search-form" onSubmit={handleApplyExclusion}>
-            <label className="admin-search-label" htmlFor="admin-nickname-search">제외할 닉네임 일부</label>
+          <form className="admin-search-form" role="search" onSubmit={handleSearch}>
+            <label className="admin-search-label" htmlFor="admin-nickname-search">닉네임 검색</label>
             <div className="admin-search-control">
-              <UserMinus className="admin-search-icon" size={21} aria-hidden="true" />
+              <Search className="admin-search-icon" size={21} aria-hidden="true" />
               <input
                 className="admin-search-input"
                 id="admin-nickname-search"
-                type="text"
+                type="search"
                 value={searchInput}
                 maxLength={20}
-                placeholder="집계에서 뺄 닉네임 일부를 입력하세요"
+                placeholder="닉네임 일부를 입력하세요"
                 aria-describedby="admin-search-help"
                 disabled={resultsLoading}
                 onChange={(event) => setSearchInput(event.target.value)}
@@ -480,7 +527,7 @@ export function AdminResultsPage() {
                 <button
                   className="admin-search-reset"
                   type="button"
-                  aria-label="제외할 닉네임 입력 지우기"
+                  aria-label="검색어 지우기"
                   onClick={() => setSearchInput('')}
                   disabled={resultsLoading}
                 >
@@ -489,11 +536,11 @@ export function AdminResultsPage() {
               )}
             </div>
             <button className="admin-search-button" type="submit" disabled={resultsLoading}>
-              제외 적용
+              검색
             </button>
           </form>
           <p className="admin-search-help" id="admin-search-help">
-            입력한 글자가 닉네임에 포함된 제출은 득표 집계와 제출·피드백 목록에서 제외됩니다.
+            닉네임의 일부만 입력해도 일치하는 제출 결과와 피드백을 찾습니다.
           </p>
         </section>
 
@@ -503,7 +550,11 @@ export function AdminResultsPage() {
             <button
               className="admin-alert-retry"
               type="button"
-              onClick={() => void loadResults(requestedFilterRef.current, requestedPageRef.current)}
+              onClick={() => void loadResults(
+                retryFilterRef.current,
+                retryPageRef.current,
+                requestedExcludedSubmissionIdsRef.current,
+              )}
               disabled={resultsLoading}
             >
               다시 시도
@@ -528,9 +579,15 @@ export function AdminResultsPage() {
                 <span className="admin-kpi-unit">명</span>
               </article>
               <article className="admin-kpi-card admin-kpi-card-highlight">
+                <Search size={23} aria-hidden="true" />
+                <span className="admin-kpi-label">검색 결과</span>
+                <strong className="admin-kpi-value">{numberFormatter.format(results.matchedSubmissionCount)}</strong>
+                <span className="admin-kpi-unit">명</span>
+              </article>
+              <article className="admin-kpi-card">
                 <UserMinus size={23} aria-hidden="true" />
                 <span className="admin-kpi-label">집계 대상</span>
-                <strong className="admin-kpi-value">{numberFormatter.format(results.filteredSubmissionCount)}</strong>
+                <strong className="admin-kpi-value">{numberFormatter.format(results.aggregatedSubmissionCount)}</strong>
                 <span className="admin-kpi-unit">명</span>
               </article>
               <article className="admin-kpi-card">
@@ -549,89 +606,24 @@ export function AdminResultsPage() {
 
             <div className="admin-dashboard-grid">
               <section
-                ref={voteDisplayRef}
                 className="admin-ranking-section"
                 id="admin-vote-display"
-                tabIndex={-1}
                 aria-labelledby="admin-ranking-title"
               >
                 <div className="admin-section-heading">
                   <div className="admin-section-heading-copy">
-                    <span className="admin-section-kicker">
-                      {selectedSubmission ? 'SELECTED SUBMISSION' : 'VOTE RANKING'}
-                    </span>
-                    <h2 id="admin-ranking-title" className="admin-section-title">
-                      {selectedSubmission ? `${selectedSubmission.nickname}님의 선택 후보` : '후보별 득표 순위'}
-                    </h2>
+                    <span className="admin-section-kicker">VOTE RANKING</span>
+                    <h2 id="admin-ranking-title" className="admin-section-title">후보별 득표 순위</h2>
                   </div>
-                  {selectedSubmission ? (
-                    <button
-                      className="admin-selection-clear"
-                      type="button"
-                      onClick={clearSelectedSubmission}
-                    >
-                      <X size={16} aria-hidden="true" />
-                      전체 순위 보기
-                    </button>
-                  ) : (
-                    <BarChart3 size={27} aria-hidden="true" />
-                  )}
+                  <BarChart3 size={27} aria-hidden="true" />
                 </div>
 
-                {selectedSubmission ? (
-                  <div className="admin-selected-submission">
-                    <div className="admin-selected-submission-meta">
-                      <strong className="admin-selected-submission-nickname">
-                        {selectedSubmission.nickname}
-                      </strong>
-                      <time dateTime={selectedSubmission.createdAt}>
-                        {formatDate(selectedSubmission.createdAt)}
-                      </time>
-                    </div>
-                    {selectedSubmissionCandidates.length > 0 ? (
-                      <ul
-                        className="admin-submission-candidate-list"
-                        aria-label={`${selectedSubmission.nickname}님의 선택 후보`}
-                      >
-                        {selectedSubmissionCandidates.map((candidate) => {
-                          const localCandidate = localCandidatesById.get(candidate.candidateId)
-
-                          return (
-                            <li className="admin-submission-candidate" key={candidate.candidateId}>
-                              {localCandidate ? (
-                                <img
-                                  className="admin-submission-candidate-image"
-                                  src={localCandidate.image}
-                                  alt={localCandidate.description}
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                              ) : (
-                                <span
-                                  className="admin-submission-candidate-image-placeholder"
-                                  aria-hidden="true"
-                                >
-                                  #{candidate.code}
-                                </span>
-                              )}
-                              <div className="admin-submission-candidate-copy">
-                                <span className="admin-ranking-code">#{candidate.code}</span>
-                                <strong>{localCandidate?.name ?? candidate.name}</strong>
-                              </div>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="admin-selected-submission-empty">선택한 후보가 없습니다.</p>
-                    )}
-                  </div>
-                ) : hasFilteredSubmissions ? (
+                {hasAggregatedSubmissions ? (
                   <ol className="admin-ranking-list">
                     {rankedCandidates.map((candidate, index) => {
                       const localCandidate = localCandidatesById.get(candidate.candidateId)
-                      const voteRate = results.filteredSubmissionCount > 0
-                        ? (candidate.voteCount / results.filteredSubmissionCount) * 100
+                      const voteRate = results.aggregatedSubmissionCount > 0
+                        ? (candidate.voteCount / results.aggregatedSubmissionCount) * 100
                         : 0
 
                       return (
@@ -672,7 +664,11 @@ export function AdminResultsPage() {
                   <div className="admin-empty-state">
                     <BarChart3 size={28} aria-hidden="true" />
                     <strong className="admin-empty-title">표시할 득표 결과가 없습니다</strong>
-                    <p className="admin-empty-copy">제외 조건을 바꾸거나 새 투표가 제출된 뒤 다시 확인해 주세요.</p>
+                    <p className="admin-empty-copy">
+                      {results.matchedSubmissionCount > 0
+                        ? '검색 결과가 모두 집계에서 제외되었습니다.'
+                        : '검색 조건을 바꾸거나 새 투표가 제출된 뒤 다시 확인해 주세요.'}
+                    </p>
                   </div>
                 )}
               </section>
@@ -683,15 +679,30 @@ export function AdminResultsPage() {
                     <span className="admin-section-kicker">SUBMISSIONS &amp; FEEDBACK</span>
                     <h2 id="admin-submissions-title" className="admin-section-title">제출 결과와 피드백</h2>
                   </div>
-                  <span className="admin-section-count">
-                    {submissionRangeStart > 0
-                      ? `${numberFormatter.format(submissionRangeStart)}–${numberFormatter.format(submissionRangeEnd)} / `
-                      : ''}
-                    {numberFormatter.format(results.filteredSubmissionCount)}건
-                  </span>
+                  <div className="admin-submission-heading-actions">
+                    <span className="admin-section-count">
+                      {submissionRangeStart > 0
+                        ? `${numberFormatter.format(submissionRangeStart)}–${numberFormatter.format(submissionRangeEnd)} / `
+                        : ''}
+                      {numberFormatter.format(results.matchedSubmissionCount)}건
+                    </span>
+                    <span className="admin-exclusion-status" role="status">
+                      {numberFormatter.format(excludedSubmissionIds.length)}건 제외
+                    </span>
+                    <button
+                      className="admin-exclusion-clear"
+                      type="button"
+                      aria-label="집계 제외 항목 전체 초기화"
+                      disabled={excludedSubmissionIds.length === 0}
+                      onClick={clearExcludedSubmissions}
+                    >
+                      <X size={14} aria-hidden="true" />
+                      Clear
+                    </button>
+                  </div>
                 </div>
                 <p className="admin-submission-select-help" id="admin-submission-select-help">
-                  제출 항목을 선택하면 득표 순위 대신 해당 참여자가 고른 후보를 확인할 수 있습니다.
+                  제출 항목을 누르면 집계에서 제외하거나 다시 포함할 수 있으며, 검색·페이지 변경에도 유지됩니다.
                 </p>
 
                 {results.submissions.length > 0 ? (
@@ -700,29 +711,31 @@ export function AdminResultsPage() {
                       const selectedCandidates = [...submission.selectedCandidates].sort(
                         (left, right) => left.displayOrder - right.displayOrder,
                       )
-                      const isSelected = selectedSubmissionId === submission.id
+                      const isExcluded = excludedSubmissionIdSet.has(submission.id)
 
                       return (
                         <article
-                          className={`admin-submission-card${isSelected ? ' admin-submission-card-selected' : ''}`}
+                          className={`admin-submission-card${isExcluded ? ' admin-submission-card-excluded' : ''}`}
                           key={submission.id}
                         >
                           <button
                             className="admin-submission-select-button"
-                            id={`admin-submission-select-${submission.id}`}
                             type="button"
-                            aria-label={`${submission.nickname}님의 제출 ${submission.id.slice(0, 8)} ${isSelected ? '선택 해제' : '선택'}`}
-                            aria-pressed={isSelected}
+                            aria-label={`${submission.nickname}님의 제출 ${submission.id.slice(0, 8)} ${isExcluded ? '집계에 다시 포함' : '집계에서 제외'}`}
+                            aria-pressed={isExcluded}
                             aria-controls="admin-vote-display"
                             aria-describedby="admin-submission-select-help"
-                            disabled={resultsLoading}
-                            onClick={() => handleSubmissionSelection(submission.id, isSelected)}
+                            onClick={() => handleSubmissionExclusion(submission.id)}
                           />
                           <header className="admin-submission-header">
                             <div className="admin-submission-person">
                               <strong className="admin-submission-nickname">{submission.nickname}</strong>
                               <span className="admin-submission-id">{submission.id.slice(0, 8)}</span>
-                              {isSelected && <span className="admin-submission-selected-badge">선택됨</span>}
+                              <span
+                                className={`admin-submission-status-badge${isExcluded ? ' admin-submission-status-badge-excluded' : ''}`}
+                              >
+                                {isExcluded ? '집계 제외' : '집계 포함'}
+                              </span>
                             </div>
                             <time className="admin-submission-date" dateTime={submission.createdAt}>
                               {formatDate(submission.createdAt)}
@@ -760,12 +773,10 @@ export function AdminResultsPage() {
                   <div className="admin-empty-state">
                     <MessageCircleMore size={28} aria-hidden="true" />
                     <strong className="admin-empty-title">
-                      {appliedFilter ? '제외 후 남은 제출 결과가 없습니다' : '아직 제출된 투표가 없습니다'}
+                      {appliedFilter ? '검색된 제출 결과가 없습니다' : '아직 제출된 투표가 없습니다'}
                     </strong>
                     <p className="admin-empty-copy">
-                      {appliedFilter
-                        ? '제외할 닉네임을 바꾸거나 제외 조건을 해제해 주세요.'
-                        : '새 투표가 제출되면 이곳에 표시됩니다.'}
+                      {appliedFilter ? '다른 닉네임으로 검색해 보세요.' : '새 투표가 제출되면 이곳에 표시됩니다.'}
                     </p>
                   </div>
                 )}
@@ -775,10 +786,7 @@ export function AdminResultsPage() {
                     <button
                       className="admin-pagination-button"
                       type="button"
-                      onClick={() => {
-                        setSelectedSubmissionId(null)
-                        void loadResults(appliedFilter, results.page - 1)
-                      }}
+                      onClick={() => void loadResults(appliedFilter, results.page - 1)}
                       disabled={!results.hasPreviousPage || resultsLoading}
                     >
                       <ChevronLeft size={17} aria-hidden="true" />
@@ -791,10 +799,7 @@ export function AdminResultsPage() {
                     <button
                       className="admin-pagination-button"
                       type="button"
-                      onClick={() => {
-                        setSelectedSubmissionId(null)
-                        void loadResults(appliedFilter, results.page + 1)
-                      }}
+                      onClick={() => void loadResults(appliedFilter, results.page + 1)}
                       disabled={!results.hasNextPage || resultsLoading}
                     >
                       다음

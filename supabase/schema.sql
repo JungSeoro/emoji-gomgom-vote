@@ -376,6 +376,7 @@ drop function if exists public.get_vote_results(uuid, text);
 drop function if exists public.get_vote_results(uuid, text, integer, integer);
 drop function if exists public.get_vote_results(text, uuid, text, integer, integer);
 drop function if exists public.get_vote_results(text, uuid, text, text, integer, integer);
+drop function if exists public.get_vote_results_with_exclusions(text, uuid, text, text, uuid[], integer, integer);
 drop function if exists public.unlock_vote_results(text, text);
 drop function if exists public.lock_vote_results(text);
 
@@ -704,10 +705,293 @@ begin
 end;
 $$;
 
+create function public.get_vote_results_with_exclusions(
+  p_session_hash text,
+  p_campaign_id uuid,
+  p_nickname_filter text,
+  p_nickname_filter_mode text,
+  p_excluded_submission_ids uuid[],
+  p_page integer default 1,
+  p_page_size integer default 50
+)
+returns jsonb
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  v_nickname_filter text;
+  v_excluded_submission_ids uuid[];
+  v_result jsonb;
+  v_has_access boolean;
+begin
+  if p_session_hash is null or p_session_hash !~ '^[0-9a-f]{64}$' then
+    raise exception '투표 결과 접근 시간이 만료되었습니다.' using errcode = '42501';
+  end if;
+
+  update private.vote_result_sessions as session
+  set last_seen_at = statement_timestamp()
+  where session.token_hash = p_session_hash
+    and session.expires_at > statement_timestamp()
+    and session.last_seen_at > statement_timestamp() - interval '30 minutes'
+  returning true into v_has_access;
+
+  if not coalesce(v_has_access, false) then
+    raise exception '투표 결과 접근 시간이 만료되었습니다.' using errcode = '42501';
+  end if;
+
+  if p_page is null or p_page < 1 then
+    raise exception '페이지는 1 이상이어야 합니다.' using errcode = '22023';
+  end if;
+
+  if p_page_size is null or p_page_size < 1 or p_page_size > 100 then
+    raise exception '페이지 크기는 1 이상 100 이하여야 합니다.' using errcode = '22023';
+  end if;
+
+  if p_nickname_filter_mode is distinct from 'include' then
+    raise exception '닉네임 필터 방식이 올바르지 않습니다.' using errcode = '22023';
+  end if;
+
+  if p_excluded_submission_ids is null
+    or pg_catalog.array_position(p_excluded_submission_ids, null) is not null then
+    raise exception '제외할 제출 정보가 올바르지 않습니다.' using errcode = '22023';
+  end if;
+
+  if pg_catalog.cardinality(p_excluded_submission_ids) > 100 then
+    raise exception '제외할 제출은 100개 이하여야 합니다.' using errcode = '22023';
+  end if;
+
+  select coalesce(
+    pg_catalog.array_agg(distinct excluded.excluded_id order by excluded.excluded_id),
+    '{}'::uuid[]
+  )
+  into v_excluded_submission_ids
+  from pg_catalog.unnest(p_excluded_submission_ids) as excluded(excluded_id);
+
+  if p_campaign_id is null
+    or not exists (
+      select 1
+      from public.vote_campaigns as campaign
+      where campaign.id = p_campaign_id
+    ) then
+    raise exception '투표 정보를 찾을 수 없습니다.' using errcode = '22023';
+  end if;
+
+  v_nickname_filter := nullif(btrim(coalesce(p_nickname_filter, '')), '');
+
+  with valid_exclusions as (
+    select
+      submission.id,
+      submission.created_at
+    from public.vote_submissions as submission
+    where submission.campaign_id = p_campaign_id
+      and submission.id = any(v_excluded_submission_ids)
+  ),
+  matched_submissions as (
+    select
+      submission.id,
+      submission.campaign_id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at
+    from public.vote_submissions as submission
+    where submission.campaign_id = p_campaign_id
+      and (
+        v_nickname_filter is null
+        or strpos(lower(submission.nickname), lower(v_nickname_filter)) > 0
+      )
+  ),
+  applied_exclusions as (
+    select
+      exclusion.id,
+      exclusion.created_at
+    from valid_exclusions as exclusion
+    inner join matched_submissions as submission
+      on submission.id = exclusion.id
+  ),
+  aggregated_submissions as (
+    select
+      submission.id,
+      submission.campaign_id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at
+    from matched_submissions as submission
+    where not exists (
+      select 1
+      from valid_exclusions as exclusion
+      where exclusion.id = submission.id
+    )
+  ),
+  matched_counts as (
+    select count(*) as submission_count
+    from matched_submissions
+  ),
+  aggregated_counts as (
+    select
+      count(*) as submission_count,
+      count(*) filter (
+        where nullif(btrim(submission.feedback), '') is not null
+      ) as feedback_count
+    from aggregated_submissions as submission
+  ),
+  paged_submissions as (
+    select
+      submission.id,
+      submission.campaign_id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at
+    from matched_submissions as submission
+    order by submission.created_at desc, submission.id
+    limit p_page_size
+    offset (p_page::bigint - 1) * p_page_size::bigint
+  ),
+  candidate_vote_rows as (
+    select
+      candidate.id as candidate_id,
+      candidate.code,
+      candidate.name,
+      candidate.set_key,
+      candidate.display_order,
+      count(submission.id) as vote_count
+    from public.emoji_candidates as candidate
+    left join public.vote_choices as choice
+      on choice.campaign_id = candidate.campaign_id
+     and choice.candidate_id = candidate.id
+    left join aggregated_submissions as submission
+      on submission.campaign_id = choice.campaign_id
+     and submission.id = choice.submission_id
+    where candidate.campaign_id = p_campaign_id
+    group by
+      candidate.id,
+      candidate.code,
+      candidate.name,
+      candidate.set_key,
+      candidate.display_order,
+      candidate.is_active
+    having candidate.is_active or count(submission.id) > 0
+  ),
+  submission_rows as (
+    select
+      submission.id,
+      submission.nickname,
+      submission.feedback,
+      submission.created_at,
+      coalesce(
+        jsonb_agg(
+          jsonb_build_object(
+            'candidate_id', candidate.id,
+            'code', candidate.code,
+            'name', candidate.name,
+            'set_key', candidate.set_key,
+            'display_order', candidate.display_order
+          )
+          order by candidate.display_order
+        ) filter (where candidate.id is not null),
+        '[]'::jsonb
+      ) as selected_candidates
+    from paged_submissions as submission
+    left join public.vote_choices as choice
+      on choice.campaign_id = submission.campaign_id
+     and choice.submission_id = submission.id
+    left join public.emoji_candidates as candidate
+      on candidate.campaign_id = choice.campaign_id
+     and candidate.id = choice.candidate_id
+    group by submission.id, submission.nickname, submission.feedback, submission.created_at
+  )
+  select jsonb_build_object(
+    'campaign_id', p_campaign_id,
+    'nickname_filter', coalesce(v_nickname_filter, ''),
+    'nickname_filter_mode', 'include',
+    'page', p_page,
+    'page_size', p_page_size,
+    'has_previous_page', p_page > 1,
+    'has_next_page', (
+      select counts.submission_count > p_page::bigint * p_page_size::bigint
+      from matched_counts as counts
+    ),
+    'total_submission_count', (
+      select count(*)
+      from public.vote_submissions as submission
+      where submission.campaign_id = p_campaign_id
+    ),
+    'filtered_submission_count', (
+      select counts.submission_count
+      from matched_counts as counts
+    ),
+    'matched_submission_count', (
+      select counts.submission_count
+      from matched_counts as counts
+    ),
+    'aggregated_submission_count', (
+      select counts.submission_count
+      from aggregated_counts as counts
+    ),
+    'applied_excluded_submission_count', (
+      select count(*)
+      from applied_exclusions
+    ),
+    'feedback_count', (
+      select counts.feedback_count
+      from aggregated_counts as counts
+    ),
+    'excluded_submission_ids', coalesce(
+      (
+        select jsonb_agg(
+          exclusion.id
+          order by exclusion.created_at desc, exclusion.id
+        )
+        from valid_exclusions as exclusion
+      ),
+      '[]'::jsonb
+    ),
+    'candidate_votes', coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'candidate_id', candidate.candidate_id,
+            'code', candidate.code,
+            'name', candidate.name,
+            'set_key', candidate.set_key,
+            'display_order', candidate.display_order,
+            'vote_count', candidate.vote_count
+          )
+          order by candidate.vote_count desc, candidate.display_order
+        )
+        from candidate_vote_rows as candidate
+      ),
+      '[]'::jsonb
+    ),
+    'submissions', coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'id', submission.id,
+            'nickname', submission.nickname,
+            'feedback', submission.feedback,
+            'created_at', submission.created_at,
+            'selected_candidates', submission.selected_candidates
+          )
+          order by submission.created_at desc, submission.id
+        )
+        from submission_rows as submission
+      ),
+      '[]'::jsonb
+    )
+  ) into v_result;
+
+  return v_result;
+end;
+$$;
+
 revoke execute on function public.unlock_vote_results(text, text) from public, anon, authenticated, service_role;
 revoke execute on function public.lock_vote_results(text) from public, anon, authenticated, service_role;
 revoke execute on function public.get_vote_results(text, uuid, text, text, integer, integer) from public, anon, authenticated, service_role;
+revoke execute on function public.get_vote_results_with_exclusions(text, uuid, text, text, uuid[], integer, integer) from public, anon, authenticated, service_role;
 
 grant execute on function public.unlock_vote_results(text, text) to service_role;
 grant execute on function public.lock_vote_results(text) to service_role;
 grant execute on function public.get_vote_results(text, uuid, text, text, integer, integer) to service_role;
+grant execute on function public.get_vote_results_with_exclusions(text, uuid, text, text, uuid[], integer, integer) to service_role;
